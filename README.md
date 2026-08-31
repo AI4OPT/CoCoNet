@@ -1,4 +1,4 @@
-# learnscore-tau1
+CLeS
 
 A minimal, from-scratch implementation of multivariate conformal prediction with a *learned*
 conformity score, trained with the "tau1" loss and calibrated by split conformal, plus a set

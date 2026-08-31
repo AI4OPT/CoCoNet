@@ -1,0 +1,20 @@
+{
+  "concrete": {
+    "seed": 0,
+    "coverage": 0.912195,
+    "mean_volume_original_scale": 25.106139,
+    "conformal_quantile": 1.51198
+  },
+  "enb": {
+    "seed": 0,
+    "coverage": 0.811688,
+    "mean_volume_original_scale": 56.848493,
+    "conformal_quantile": 1.055071
+  },
+  "oes10": {
+    "seed": 0,
+    "coverage": 0.95,
+    "mean_volume_original_scale": 2.5578022380099064e+53,
+    "conformal_quantile": 2.699897
+  }
+}

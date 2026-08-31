@@ -1,0 +1,72 @@
+# Global defaults for every dataset. `dataset_overrides.<name>` below overrides any of these
+# keys for that dataset only -- architecture/optimizer/loss-weight values that were tuned
+# per-dataset in the original repo's search (see README's "reproducing paper_results_tau1").
+# `dataset_overrides` applies the same way regardless of `method`.
+
+# icnn | asymmetric_linear | spline (the CLeS family, trained) | mvcs (a different paper's
+# method, also trained) | absolute_residual | global_ellipsoid | empirical_copula (baselines,
+# fit only -- see README)
+method: icnn
+
+alpha: 0.10
+tau_mode: fixed          # or "quantile": the batch's empirical (1-alpha) score quantile
+tau_fixed: 1.0
+size_objective: root_mean_volume   # (E[V])^(1/d); or "log1p_mean_volume"
+kappa_coverage: 10.0
+lambda_miss: 1.0
+lambda_cov: 1.0
+
+encoder_hidden_dims: [64, 32]
+icnn_hidden_dims: [64, 64]
+epsilon: 0.001
+
+point_hidden_dims: [64, 32]
+point_learning_rate: 0.001
+point_max_epochs: 300
+point_patience: 20
+
+learning_rate: 0.0005
+batch_size: 64
+max_epochs: 300
+patience: 80
+grad_clip_norm: 5.0
+checkpoint_every: 5
+coverage_tolerance: 0.02
+min_selection_epoch: 10
+
+pred_frac: 0.25
+score_frac: 0.30
+cal_frac: 0.25
+test_frac: 0.20
+pred_val_frac: 0.20
+score_val_frac: 0.20
+
+device: cpu
+
+# Per-dataset overrides recovered from the original repo's per-dataset optimizer tuning
+# (icnn_optimizer_tuning_v2/<dataset>__seed<k>.json) and its recorded loss weights
+# (paper_results_tau1/<dataset>/raw_metrics.csv, columns lambda_miss/lambda_cov). These are
+# the exact values that produced paper_results_tau1 for seed 0; used by the reproduction
+# test in tests/test_reproduction.py.
+dataset_overrides:
+  concrete:
+    encoder_hidden_dims: [256, 128]
+    learning_rate: 0.0005
+    batch_size: 64
+    epsilon: 0.00001
+    lambda_miss: 0.245836
+    lambda_cov: 65.90716
+  enb:
+    encoder_hidden_dims: [32, 16]
+    learning_rate: 0.002
+    batch_size: 32
+    epsilon: 0.00001
+    lambda_miss: 0.3962299478913835
+    lambda_cov: 319.8022620092308
+  oes10:
+    encoder_hidden_dims: [32, 16]
+    learning_rate: 0.002
+    batch_size: 97
+    epsilon: 0.001
+    lambda_miss: 62.23179695855637
+    lambda_cov: 275.73988119196946

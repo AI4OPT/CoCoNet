@@ -22,6 +22,7 @@ from pathlib import Path
 os.environ.setdefault("OMP_NUM_THREADS", "4")
 os.environ.setdefault("MKL_NUM_THREADS", "4")
 
+import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import torch  # noqa: E402
 
@@ -80,6 +81,7 @@ def main() -> int:
     logger.info("torch threads: %d (the paper's CPU numbers need 4)", torch.get_num_threads())
 
     failed = 0
+    rows = []
     for seed in seeds:
         out = Path(args.output_dir) / args.dataset / (
             args.method if args.encoder_input == "xf" else f"{args.method}_{args.encoder_input}") / f"seed{seed}"
@@ -132,6 +134,14 @@ def main() -> int:
             torch.save(res.model.model.state_dict(), out / "model_state.pt")
         logger.info("RESULT %s %s seed=%d status=%s coverage=%.4f size=%.6g volume=%.6g",
                     args.dataset, args.method, seed, row["status"], row["coverage"], row["size"], row["volume"])
+        rows.append(row)
+    if len(rows) > 1:
+        d = rows[0]["d"]
+        volume = np.array([r["volume"] for r in rows])
+        coverage = np.array([r["coverage"] for r in rows])
+        logger.info("AVERAGE over %d seeds %s: %s %s  size (mean V)^(1/d) = %.4f +- %.4f  coverage = %.4f +- %.4f",
+                    len(rows), [r["seed"] for r in rows], args.dataset, args.method,
+                    volume.mean() ** (1.0 / d), np.std(volume ** (1.0 / d)), coverage.mean(), np.std(coverage))
     return 1 if failed else 0
 
 

@@ -44,7 +44,6 @@ coconet/conformal/       calibration, ellipsoid, empirical_copula, mvcs
 coconet/data/            loaders, preprocessing, splits
 data/raw/                raw dataset files (UCI/OpenML files are downloaded on first use if missing)
 reference/               the paper's frozen point predictors, tuned selections and per-cell numbers (paper_cells.csv)
-slurm/                   PACE job scripts
 ```
 
 ## Setup
@@ -136,13 +135,9 @@ The encoder-input ablation runs the ICNN with `--encoder-input {f,x,none,id_xf,i
 (`xf` is the paper's CoCoNet_ICNN); the paper reused the production tuning, so keep the default
 `--tuning-dir`.
 
-On PACE:
-
-```
-sbatch slurm/run_cpu.sbatch enb spline        # any CPU method
-sbatch slurm/run_icnn.sbatch enb              # CoCoNet_ICNN on a Quadro RTX 6000
-bash slurm/submit_all.sh                      # every (dataset, method) of the tables
-```
+Both scripts default `OMP_NUM_THREADS` to 4 (the paper's CPU setting). For the CPU methods hide
+any GPU with `CUDA_VISIBLE_DEVICES=` so torch does not pick it up. A cluster job needs one node,
+4 cores, 8 GB per core and, for `icnn`, one GPU.
 
 Tables:
 

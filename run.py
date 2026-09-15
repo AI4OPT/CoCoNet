@@ -9,7 +9,7 @@ from reference/tuning (or tune them with --tune), train and calibrate the method
 the test split, write results/<dataset>/<method>/seed<S>/row.json.
 
 Devices: --method icnn needs a GPU (the paper: Quadro RTX 6000) and a CPU count of 4;
-everything else runs on the CPU with 4 threads. The slurm/ scripts set both up.
+everything else runs on the CPU with 4 threads (OMP_NUM_THREADS=4, CUDA_VISIBLE_DEVICES=).
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ from pathlib import Path
 os.environ.setdefault("OMP_NUM_THREADS", "4")
 os.environ.setdefault("MKL_NUM_THREADS", "4")
 
+import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import torch  # noqa: E402
 
@@ -71,7 +72,12 @@ def main() -> int:
     device = "cpu"
     if args.method == pipeline.ICNN_METHOD:
         if not torch.cuda.is_available():
-            raise SystemExit("icnn needs a GPU (the paper used a Quadro RTX 6000)")
+            raise SystemExit(
+                "icnn needs a GPU (the paper used a Quadro RTX 6000) but torch sees none: "
+                f"torch {torch.__version__} (a CPU-only build has no '+cu' suffix), "
+                f"CUDA_VISIBLE_DEVICES={os.environ.get('CUDA_VISIBLE_DEVICES', '<unset>')!r}. "
+                "Activate the environment with the CUDA build of torch, make sure the job allocation "
+                "requested a GPU (--gres=gpu:1) and that CUDA_VISIBLE_DEVICES is not set to an empty string.")
         device = "cuda"
         logger.info("icnn device: %s", torch.cuda.get_device_name(0))
     elif torch.cuda.is_available():
@@ -80,6 +86,7 @@ def main() -> int:
     logger.info("torch threads: %d (the paper's CPU numbers need 4)", torch.get_num_threads())
 
     failed = 0
+    rows = []
     for seed in seeds:
         out = Path(args.output_dir) / args.dataset / (
             args.method if args.encoder_input == "xf" else f"{args.method}_{args.encoder_input}") / f"seed{seed}"
@@ -132,6 +139,14 @@ def main() -> int:
             torch.save(res.model.model.state_dict(), out / "model_state.pt")
         logger.info("RESULT %s %s seed=%d status=%s coverage=%.4f size=%.6g volume=%.6g",
                     args.dataset, args.method, seed, row["status"], row["coverage"], row["size"], row["volume"])
+        rows.append(row)
+    if len(rows) > 1:
+        d = rows[0]["d"]
+        volume = np.array([r["volume"] for r in rows])
+        coverage = np.array([r["coverage"] for r in rows])
+        logger.info("AVERAGE over %d seeds %s: %s %s  size (mean V)^(1/d) = %.4f +- %.4f  coverage = %.4f +- %.4f",
+                    len(rows), [r["seed"] for r in rows], args.dataset, args.method,
+                    volume.mean() ** (1.0 / d), np.std(volume ** (1.0 / d)), coverage.mean(), np.std(coverage))
     return 1 if failed else 0
 
 

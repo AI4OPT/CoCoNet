@@ -9,7 +9,7 @@ from reference/tuning (or tune them with --tune), train and calibrate the method
 the test split, write results/<dataset>/<method>/seed<S>/row.json.
 
 Devices: --method icnn needs a GPU (the paper: Quadro RTX 6000) and a CPU count of 4;
-everything else runs on the CPU with 4 threads. The slurm/ scripts set both up.
+everything else runs on the CPU with 4 threads (OMP_NUM_THREADS=4, CUDA_VISIBLE_DEVICES=).
 """
 
 from __future__ import annotations
@@ -72,7 +72,12 @@ def main() -> int:
     device = "cpu"
     if args.method == pipeline.ICNN_METHOD:
         if not torch.cuda.is_available():
-            raise SystemExit("icnn needs a GPU (the paper used a Quadro RTX 6000)")
+            raise SystemExit(
+                "icnn needs a GPU (the paper used a Quadro RTX 6000) but torch sees none: "
+                f"torch {torch.__version__} (a CPU-only build has no '+cu' suffix), "
+                f"CUDA_VISIBLE_DEVICES={os.environ.get('CUDA_VISIBLE_DEVICES', '<unset>')!r}. "
+                "Activate the environment with the CUDA build of torch, make sure the job allocation "
+                "requested a GPU (--gres=gpu:1) and that CUDA_VISIBLE_DEVICES is not set to an empty string.")
         device = "cuda"
         logger.info("icnn device: %s", torch.cuda.get_device_name(0))
     elif torch.cuda.is_available():

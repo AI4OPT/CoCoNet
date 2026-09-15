@@ -146,24 +146,6 @@ python make_table.py             # tables/aggregated.csv, tables/multivariate.te
 python make_table.py --compare   # plus tables/comparison_with_paper.csv against reference/paper_cells.csv
 ```
 
-## Reproducing the paper's numbers
-
-The numbers depend on the device, so the paper's device assignment must be kept:
-
-- CoCoNet_ICNN trains and measures its test volume on the GPU. The paper used a Quadro RTX 6000;
-  on that card a rerun reproduces the recorded volumes. Another GPU model changes the
-  floating-point results and, through the checkpoint and gamma selection steps, can change the
-  selected model.
-- Everything else (point predictor, baselines, CoCoNet_Spline, MVCS) runs on the CPU with 4
-  threads and no GPU visible; those numbers are bit-reproducible. The thread count matters: the
-  frozen point predictor's residuals are reproduced only with `OMP_NUM_THREADS=4`.
-
-`reference/paper_cells.csv` lists, for every (dataset, seed, method) of the tables, the volume
-and coverage that entered the paper; `make_table.py --compare` diffs a rerun against it. A rerun
-of every method on ENB seed 0 (ICNN on a Quadro RTX 6000, the rest on 4 CPU threads), of every
-univariate method on Concrete seed 0 and of the global ellipsoid on SGEMM seed 1 reproduced the
-recorded volumes and coverages exactly, and refitting the point predictors of ENB and SGEMM
-reproduced the recorded residuals bit for bit.
 
 ## Protocol (configs/paper.yaml)
 

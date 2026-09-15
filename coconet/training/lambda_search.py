@@ -319,9 +319,8 @@ def search_lambdas(
                 abs(result.final_val_real_coverage - target) <= config.coverage_tolerance),
         )
         logger.info(
-            "[%s] gamma_miss=%-6g gamma_cov=%-6g -> val_cov=%.4f val_width=%.5f%s",
+            "[%s] gamma_miss=%-6g gamma_cov=%-6g -> val_cov=%.4f val_width=%.5f",
             stage, gamma_miss, gamma_cov, cand.val_real_coverage, cand.val_real_width,
-            "" if cand.coverage_admissible else "  (not coverage-admissible)",
         )
         scored.append((cand, result))
         _release_losers()

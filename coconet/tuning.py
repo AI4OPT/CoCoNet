@@ -107,9 +107,8 @@ def tune_icnn(data: PreparedData, cfg: dict, seed: int, device: str, encoder_inp
                "seconds": time.perf_counter() - t0}
         rows.append(row)
         trained[key] = row
-        logger.info("[%s] lr=%s bs=%s enc=%s eps=%s -> val_cov=%.4f val_vol=%.6g %s (%.0fs)", stage, lr, bs,
-                    list(enc), eps, cov, vol, "OK" if row["coverage_admissible"] else "(not admissible)",
-                    row["seconds"])
+        logger.info("[%s] lr=%s bs=%s enc=%s eps=%s -> val_cov=%.4f val_vol=%.6g (%.0fs)", stage, lr, bs,
+                    list(enc), eps, cov, vol, row["seconds"])
         return row
 
     rules = {}
@@ -176,8 +175,8 @@ def tune_spline(data: PreparedData, cfg: dict, seed: int) -> dict:
                "seconds": time.perf_counter() - t0}
         rows.append(row)
         trained[key] = row
-        logger.info("[%s] knots=%s lr=%s bs=%s enc=%s -> val_cov=%.4f val_vol=%.6g %s (%.0fs)", stage, nk, lr, bs,
-                    list(enc), cov, vol, "OK" if row["coverage_admissible"] else "(not admissible)", row["seconds"])
+        logger.info("[%s] knots=%s lr=%s bs=%s enc=%s -> val_cov=%.4f val_vol=%.6g (%.0fs)", stage, nk, lr, bs,
+                    list(enc), cov, vol, row["seconds"])
         return row
 
     rules = {}

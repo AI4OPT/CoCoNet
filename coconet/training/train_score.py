@@ -369,9 +369,8 @@ def train_one_config(
         result.diagnostics_history.append(row)
 
         if epoch % max(1, config.checkpoint_every) == 0:
-            logger.info("epoch %d: tau_train=%.6g (mode=%s) temperature=%.6g smooth_cov=%.4f",
-                        epoch, diag.tau_used, config.train_tau_mode, diag.temperature_used,
-                        diag.smooth_coverage)
+            logger.info("epoch %d: val loss=%.5g size term=%.5g smooth_cov=%.4f",
+                        epoch, float(val_total.item()), float(val_width_t.detach()), diag.smooth_coverage)
 
         consecutive_pinned = consecutive_pinned + 1 if diag.saturated else 0
         if consecutive_pinned in (10, 50, 200):
@@ -383,10 +382,14 @@ def train_one_config(
 
         if selection_metric == "calibrated_validation_area" and (
                 epoch % max(1, config.checkpoint_every) == 0 or epoch == config.max_epochs - 1):
-            tracker.record(evaluate_calibrated_checkpoint(
+            ckpt = evaluate_calibrated_checkpoint(
                 model, X_inner_cal_t, r_inner_cal_t, X_inner_eval_t, r_inner_eval_t, alpha, epoch,
                 surrogate_loss=float(val_total.item()), surrogate_area=float(val_width_t.detach()),
-                smooth_coverage=float(val_smoothed_cov)), model)
+                smooth_coverage=float(val_smoothed_cov))
+            tracker.record(ckpt, model)
+            _d = int(getattr(model, "residual_dim", getattr(model, "output_dim", 1)) or 1)
+            logger.info("epoch %d: calibrated validation coverage=%.4f normalized size (mean V)^(1/d)=%.5g",
+                        epoch, ckpt.actual_validation_coverage, ckpt.actual_validation_mean_area ** (1.0 / _d))
 
         should_stop = stopper.step(float(val_total.item()), epoch, model)
         if should_stop:

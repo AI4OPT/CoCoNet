@@ -191,10 +191,5 @@ papers with the settings listed in the config.
 If you use this code or the results, please cite the paper:
 
 ```bibtex
-@article{moradi2026coconet,
-  title   = {{CoCoNet}: Convex Conformal Network for Multi-dimensional Uncertainty Regions},
-  author  = {Moradi, Alireza and Bruys, Thomas and Zandehshahvar, Reza and Van Hentenryck, Pascal},
-  year    = {2026},
-  note    = {H. Milton Stewart School of Industrial and Systems Engineering, AI4OPT, Georgia Institute of Technology}
-}
+
 ```

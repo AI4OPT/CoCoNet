@@ -1,0 +1,28 @@
+{
+ "dataset": "argoverse2_motion_forecasting",
+ "seed": 2,
+ "method": "spline",
+ "learning_rate": 0.002,
+ "batch_size": 32,
+ "patience": 80,
+ "encoder_hidden_dims": [
+  64,
+  32
+ ],
+ "row_fingerprint": "631144eb0d064cc4",
+ "residual_sha": "4e6df1168e49ca39",
+ "max_rows": 20000,
+ "device": "cpu",
+ "device_name": "cpu",
+ "n_trainings": 7,
+ "tuning_gamma": [
+  1.0,
+  1.0
+ ],
+ "num_knots": 8,
+ "stage_rules": {
+  "num_knots": "coverage_admissible_min_calibrated_validation_volume",
+  "batch_size": "coverage_admissible_min_calibrated_validation_volume",
+  "encoder_hidden_dims": "coverage_admissible_min_calibrated_validation_volume"
+ }
+}

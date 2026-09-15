@@ -1,0 +1,12 @@
+{
+ "dataset": "household_power_consumption",
+ "seed": 0,
+ "max_rows": 20000,
+ "row_fingerprint": "e81bd22b491bca99",
+ "residual_sha": "49ae6ff61f9d47dc",
+ "pt_sha256": "a49099c9d36896ac0e77cb5c26c585d51a6e9bc01e536b8ffb2e168ff6372573",
+ "fit_device": "cpu",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126",
+ "source_pt_sha256": "b8fb8ae38c5ac54712a300733bc72d998c6fbdc4961c1cc6f62b2f80ce0949db"
+}

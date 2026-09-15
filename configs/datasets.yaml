@@ -1,0 +1,359 @@
+# The 31 datasets of the paper: 25 multivariate (main table) and 6 univariate (appendix).
+#
+# Per dataset: `paper_name` (the row label in the paper), `output_dim`, `max_rows` (the row cap
+# used for the paper's numbers: a seeded random sample of that many rows, or null for the whole
+# dataset), `loader` (a key of coconet/data/loaders.py:LOADERS) and the loader's own fields.
+# Raw files live under data/raw/; a missing UCI/OpenML file is downloaded on first use.
+
+# ---------------------------------------------------------------- multivariate, d = 2
+argoverse2_d2:
+  paper_name: "Argoverse2-2D"
+  output_dim: 2
+  max_rows: 20000
+  loader: argoverse2
+  data_path: data/raw/argoverse2_multidim.csv
+  target_columns: [future_dx_s60, future_dy_s60]
+  drop_columns: [scenario_id]
+  categorical_columns: [object_type, city]
+
+argoverse2_motion_forecasting:
+  paper_name: "Argoverse2 Motion"
+  output_dim: 2
+  max_rows: 20000
+  loader: argoverse2
+  data_path: data/raw/argoverse2_motion_forecasting.csv
+  target_columns: [future_dx, future_dy]
+  drop_columns: [scenario_id]
+  categorical_columns: [object_type, city]
+
+bias_correction_temperature:
+  paper_name: "Bias-Corr. Temp."
+  output_dim: 2
+  max_rows: null
+  loader: bias_correction_temperature
+  url: "https://archive.ics.uci.edu/static/public/514/bias+correction+of+numerical+prediction+model+temperature+forecast.zip"
+  raw_filename: bias_correction.zip
+  zip_inner_file: Bias_correction_ucl.csv
+  target_columns: [Next_Tmax, Next_Tmin]
+  drop_columns: []
+  categorical_columns: [station]
+  date_column: Date
+
+enb:
+  paper_name: "ENB"
+  output_dim: 2
+  max_rows: null
+  loader: openml_multi_target
+  openml_data_id: 41478
+  target_columns: [Y1, Y2]
+  categorical_columns: []
+
+geographical_music:
+  paper_name: "Geographical Music"
+  output_dim: 2
+  max_rows: null
+  loader: geographical_music
+  url: "https://archive.ics.uci.edu/static/public/315/geographical+original+of+music.zip"
+  raw_filename: geographical_music.zip
+  zip_inner_file: default_features_1059_tracks.txt
+  target_columns: [latitude, longitude]
+
+mvcs_casp:
+  paper_name: "CASP"
+  output_dim: 2
+  max_rows: 20000
+  loader: mvcs_npz
+  npz_path: mvcs/CASP.npz
+
+online_retail_ii:
+  paper_name: "Online Retail II"
+  output_dim: 2
+  max_rows: 20000
+  loader: online_retail_ii
+  url: "https://archive.ics.uci.edu/static/public/502/online+retail+ii.zip"
+  zip_inner_file: online_retail_II.xlsx
+  sheet_names: ["Year 2009-2010", "Year 2010-2011"]
+  target_columns: [Quantity, Price]
+  drop_columns: [Invoice, StockCode, Description, "Customer ID", InvoiceDate]
+  categorical_columns: [Country]
+
+qm9_d2:
+  paper_name: "QM9-2D"
+  output_dim: 2
+  max_rows: 20000
+  loader: qm9
+  data_path: data/raw/qm9/qm9_tabular.csv
+  target_dim: 2
+
+# ---------------------------------------------------------------- d = 3, 4
+household_power_consumption:
+  paper_name: "Household Power"
+  output_dim: 3
+  max_rows: 20000
+  loader: household_power
+  url: "https://archive.ics.uci.edu/static/public/235/individual+household+electric+power+consumption.zip"
+  zip_inner_file: household_power_consumption.txt
+  missing_value_marker: "?"
+  target_columns: [Sub_metering_1, Sub_metering_2, Sub_metering_3]
+  drop_columns: [Date, Time]
+  categorical_columns: []
+
+scpf:
+  paper_name: "SCPF"
+  output_dim: 3
+  max_rows: null
+  loader: openml_multi_target
+  openml_data_id: 41487
+  target_columns: [num_views, num_votes, num_comments]
+  categorical_columns: []
+
+argoverse2_d4:
+  paper_name: "Argoverse2-4D"
+  output_dim: 4
+  max_rows: 20000
+  loader: argoverse2
+  data_path: data/raw/argoverse2_multidim.csv
+  target_columns: [future_dx_s30, future_dy_s30, future_dx_s60, future_dy_s60]
+  drop_columns: [scenario_id]
+  categorical_columns: [object_type, city]
+
+qm8_excited_states:
+  paper_name: "QM8"
+  output_dim: 4
+  max_rows: 20000
+  loader: qm8_excited_states
+  url: https://raw.githubusercontent.com/raghurama123/ExcitedStatesQM8/main/22k_electronic_spectra_TDDFT_CC2/gdb8_22k_elec_spec.txt
+  raw_filename: qm8_gdb8_22k_elec_spec.txt
+  xyz_url: https://raw.githubusercontent.com/raghurama123/ExcitedStatesQM8/main/22k_electronic_spectra_TDDFT_CC2/XYZ_B3LYP_631G2dfp.xyz
+  xyz_raw_filename: qm8_XYZ_B3LYP_631G2dfp.xyz
+  n_eigenvalues: 8
+  all_target_columns: [CC2_E1, CC2_E2, CC2_f1, CC2_f2, PBE0svp_E1, PBE0svp_E2, PBE0svp_f1, PBE0svp_f2,
+                       PBE0tzvp_E1, PBE0tzvp_E2, PBE0tzvp_f1, PBE0tzvp_f2, CAM_E1, CAM_E2, CAM_f1, CAM_f2]
+  target_columns: [CC2_E1, CC2_E2, CC2_f1, CC2_f2]
+  categorical_columns: []
+
+qm9_d4:
+  paper_name: "QM9-4D"
+  output_dim: 4
+  max_rows: 20000
+  loader: qm9
+  data_path: data/raw/qm9/qm9_tabular.csv
+  target_dim: 4
+
+sgemm:
+  paper_name: "SGEMM"
+  output_dim: 4
+  max_rows: 20000
+  loader: sgemm
+  url: "https://archive.ics.uci.edu/static/public/440/sgemm+gpu+kernel+performance.zip"
+  zip_inner_file: sgemm_product.csv
+  target_columns: ["Run1 (ms)", "Run2 (ms)", "Run3 (ms)", "Run4 (ms)"]
+  drop_columns: []
+  categorical_columns: [STRM, STRN, SA, SB]
+
+# ---------------------------------------------------------------- d = 6, 7, 8
+beijing_aq_6d:
+  paper_name: "Beijing AQ-6D"
+  output_dim: 6
+  max_rows: 20000
+  loader: beijing_aq_6d
+  url: "https://archive.ics.uci.edu/static/public/501/beijing+multi+site+air+quality+data.zip"
+  raw_filename: beijing_multi_site_air_quality.zip
+  nested_zip_name: PRSA2017_Data_20130301-20170228.zip
+  expected_n_stations: 12
+  target_columns: ["PM2.5", PM10, SO2, NO2, CO, O3]
+  drop_columns: [No]
+  categorical_columns: [wd, station]
+
+communities_crime_unnormalized:
+  paper_name: "Communities Crime"
+  output_dim: 6
+  max_rows: null
+  loader: communities_crime_unnormalized
+  url: https://archive.ics.uci.edu/static/public/211/communities+and+crime+unnormalized.zip
+  raw_filename: communities_crime_unnormalized.zip
+  zip_inner_file: CommViolPredUnnormalizedData.txt
+  missing_value_marker: "?"
+  target_columns: [murdPerPop, rapesPerPop, robbbPerPop, assaultPerPop, burglPerPop, larcPerPop]
+  drop_columns: [communityname, State, countyCode, communityCode, fold, murders, rapes, robberies,
+                 assaults, burglaries, larcenies, autoTheft, autoTheftPerPop, arsons, arsonsPerPop,
+                 violentPerPop, nonViolPerPop]
+  categorical_columns: []
+
+qm9_d6:
+  paper_name: "QM9-6D"
+  output_dim: 6
+  max_rows: 20000
+  loader: qm9
+  data_path: data/raw/qm9/qm9_tabular.csv
+  target_dim: 6
+
+sarcos:
+  paper_name: "SARCOS"
+  output_dim: 7
+  max_rows: 20000
+  loader: sarcos
+  data_dir: sarcos
+  n_input_columns: 21
+  target_indices: [21, 22, 23, 24, 25, 26, 27]
+  use_shipped_split: false
+
+argoverse2_d8:
+  paper_name: "Argoverse2-8D"
+  output_dim: 8
+  max_rows: 20000
+  loader: argoverse2
+  data_path: data/raw/argoverse2_multidim.csv
+  target_columns: [future_dx_s15, future_dy_s15, future_dx_s30, future_dy_s30,
+                   future_dx_s45, future_dy_s45, future_dx_s60, future_dy_s60]
+  drop_columns: [scenario_id]
+  categorical_columns: [object_type, city]
+
+qm9_d8:
+  paper_name: "QM9-8D"
+  output_dim: 8
+  max_rows: 20000
+  loader: qm9
+  data_path: data/raw/qm9/qm9_tabular.csv
+  target_dim: 8
+
+# ---------------------------------------------------------------- d = 12, 14, 16
+beijing_aq_12d:
+  paper_name: "Beijing AQ-12D"
+  output_dim: 12
+  max_rows: 20000
+  loader: beijing_aq_12d
+  url: "https://archive.ics.uci.edu/static/public/501/beijing+multi+site+air+quality+data.zip"
+  raw_filename: beijing_multi_site_air_quality.zip
+  nested_zip_name: PRSA2017_Data_20130301-20170228.zip
+  expected_n_stations: 12
+  pm25_column: "PM2.5"
+  meteo_columns: [TEMP, PRES, DEWP, RAIN, wd, WSPM]
+
+knee_contact_force_d12:
+  paper_name: "Knee Contact Force"
+  output_dim: 12
+  max_rows: null
+  loader: csv_targets
+  source: zenodo_7253458_knee_contact_force
+  raw_filename: knee_contact_force_d12.csv
+  target_columns: [loading_response_medial, loading_response_lateral, loading_response_both,
+                   terminal_extension_medial, terminal_extension_lateral, terminal_extension_both,
+                   max_peak_medial, max_peak_lateral, max_peak_both, MFR_LR, MFR_TE, MFR_common]
+  drop_columns: [SUBJECT_UID]
+  categorical_columns: [SOURCE_DATASET]
+
+qm7b_d14:
+  paper_name: "QM7b"
+  output_dim: 14
+  max_rows: null
+  loader: csv_targets
+  source: qm7b_quantum_machine
+  raw_filename: qm7b_d14.csv
+  target_columns: [ae_pbe0, exc_max_zindo, abs_max_zindo, homo_zindo, lumo_zindo, exc1_zindo, ip_zindo,
+                   ea_zindo, homo_pbe0, lumo_pbe0, homo_gw, lumo_gw, pol_pbe0, pol_scs]
+  drop_columns: []
+  categorical_columns: []
+
+oes10:
+  paper_name: "OES10"
+  output_dim: 16
+  max_rows: null
+  loader: oes
+  openml_data_id: 41480
+  url: "https://openml.org/data/v1/download/21230437/oes10.arff"
+  raw_filename: oes10.arff
+  target_columns: [x513021_Butchers_and_Meat_Cutters, x292071_Medical_Records_and_Health_Information_Technicians,
+                   x392021_Nonfarm_Animal_Caretakers, x151131_Computer_Programmers, x151141_Database_Administrators,
+                   x291069_Physicians_and_Surgeons__All_Other, x119032_Education_Administrators__Elementary_and_Secondary_School,
+                   x432011_Switchboard_Operators__Including_Answering_Service, x419022_Real_Estate_Sales_Agents,
+                   x292037_Radiologic_Technologists_and_Technicians_, x519061_Inspectors__Testers__Sorters__Samplers__and_Weighers,
+                   x291051_Pharmacists, x172141_Mechanical_Engineers,
+                   x431011_First_Line_Supervisors_of_Office_and_Administrative_Support_Workers,
+                   x291127_Speech_Language_Pathologists, x412021_Counter_and_Rental_Clerks]
+  categorical_columns: []
+
+oes97:
+  paper_name: "OES97"
+  output_dim: 16
+  max_rows: null
+  loader: oes
+  openml_data_id: 41481
+  url: "https://openml.org/data/v1/download/21230438/oes97.arff"
+  raw_filename: oes97.arff
+  target_columns: [x58028_Shipping__Receiving__and_Traffic_Clerks, x15014_Industrial_Production_Managers,
+                   x32511_Physician_Assistants, x15017_Construction_Managers, x98502_Machine_Feeders_and_Offbearers,
+                   x92965_Crushing__Grinding__Mixing__and_Blending_Machine_Operators_and_Tenders,
+                   x32314_Speech_Language_Pathologists_and_Audiologists, x13008_Purchasing_Managers,
+                   x21114_Accountants_and_Auditors, x85110_Machinery_Maintenance_Mechanics,
+                   x27311_Recreation_Workers, x98902_Hand_Packers_and_Packagers, x65032_Cooks__Fast_Food,
+                   x92998_All_Other_Machine_Operators_and_Tenders, x27108_Psychologists,
+                   x53905_Teacher_Aides_and_Educational_Assistants__Clerical]
+  categorical_columns: []
+
+# ---------------------------------------------------------------- univariate (appendix)
+beijing_pm25:
+  paper_name: "Beijing PM2.5"
+  output_dim: 1
+  max_rows: 10000
+  loader: beijing_pm25
+  url: "https://archive.ics.uci.edu/static/public/381/beijing+pm2+5+data.zip"
+  zip_inner_file: PRSA_data_2010.1.1-2014.12.31.csv
+  target_column: "pm2.5"
+  drop_columns: [No]
+  categorical_columns: [cbwd]
+
+bike_sharing:
+  paper_name: "Bike Sharing"
+  output_dim: 1
+  max_rows: 10000
+  loader: bike_sharing
+  url: "https://archive.ics.uci.edu/ml/machine-learning-databases/00275/Bike-Sharing-Dataset.zip"
+  zip_inner_file: hour.csv
+  target_column: cnt
+  drop_columns: [instant, casual, registered, dteday]
+  date_column: dteday
+  categorical_columns: [season, yr, mnth, hr, holiday, weekday, workingday, weathersit]
+
+ccpp:
+  paper_name: "CCPP"
+  output_dim: 1
+  max_rows: 10000
+  loader: ccpp
+  url: "https://archive.ics.uci.edu/static/public/294/combined+cycle+power+plant.zip"
+  zip_inner_file: Folds5x2_pp.xlsx
+  sheet_name: Sheet1
+  target_column: PE
+  drop_columns: []
+  categorical_columns: []
+
+concrete:
+  paper_name: "Concrete"
+  output_dim: 1
+  max_rows: null
+  loader: concrete
+  url: "https://archive.ics.uci.edu/ml/machine-learning-databases/concrete/compressive/Concrete_Data.xls"
+  raw_filename: Concrete_Data.xls
+  target_column: "Concrete compressive strength(MPa, megapascals) "
+  drop_columns: []
+  categorical_columns: []
+
+kin8nm:
+  paper_name: "Kin8nm"
+  output_dim: 1
+  max_rows: null
+  loader: openml_univariate
+  openml_data_id: 189
+  target_column: y
+  categorical_columns: []
+
+protein:
+  paper_name: "Protein"
+  output_dim: 1
+  max_rows: 10000
+  loader: protein
+  url: "https://archive.ics.uci.edu/ml/machine-learning-databases/00265/CASP.csv"
+  raw_filename: CASP.csv
+  target_column: RMSD
+  categorical_columns: []
+  expected_n_rows: 45730

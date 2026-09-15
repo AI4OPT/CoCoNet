@@ -1,0 +1,12 @@
+{
+ "dataset": "geographical_music",
+ "seed": 2,
+ "max_rows": null,
+ "row_fingerprint": "7df2987685ba94b5",
+ "residual_sha": "be9f706dfb2c6435",
+ "pt_sha256": "5cd7d27ff5f880fbecf206181c75cbebb768de4225a4067eefeafad4ea2371c7",
+ "fit_device": "cpu",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126",
+ "source_pt_sha256": "60f06e0f8a1503d1913cb659ae955e385c9dc44799ce46f5703ff0ccaaf7dbe5"
+}

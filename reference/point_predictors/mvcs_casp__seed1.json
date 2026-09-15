@@ -1,0 +1,12 @@
+{
+ "dataset": "mvcs_casp",
+ "seed": 1,
+ "max_rows": 20000,
+ "row_fingerprint": "79b53246794e5621",
+ "residual_sha": "99c9a639f69a45d0",
+ "pt_sha256": "18d89b9c830e6bb31b1790d75d249526cc20f2d88b409fdd370885798a3fa1a5",
+ "fit_device": "cpu",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126",
+ "source_pt_sha256": "ab13d609a9500ef6c49e8c49c211465362d1321450d034790b24dd3914555473"
+}

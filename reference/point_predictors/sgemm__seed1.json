@@ -1,0 +1,12 @@
+{
+ "dataset": "sgemm",
+ "seed": 1,
+ "max_rows": 20000,
+ "row_fingerprint": "79b53246794e5621",
+ "residual_sha": "1fd5412b310ec16c",
+ "pt_sha256": "20e143aa04981c6ec6f9b103899342906233edac76273d553de531687ac547b0",
+ "fit_device": "cpu",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126",
+ "source_pt_sha256": "e0e58a39d1e860f6d78f6eec4d8a6baca8d9c7d8dd6429c33fc2177f07200c8b"
+}

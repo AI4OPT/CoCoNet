@@ -1,0 +1,12 @@
+{
+ "dataset": "oes10",
+ "seed": 2,
+ "max_rows": null,
+ "row_fingerprint": "524592c51a8fd517",
+ "residual_sha": "b1e7d93915f4a5d6",
+ "pt_sha256": "96a67d3a79e8dc3085471c5bf63564f8aa479b2f2ea4a9d8708e51248c9bde22",
+ "fit_device": "cpu",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126",
+ "source_pt_sha256": "e3fa7bcd887aa6e0d0bad38040a47992175d12018fd4f59885a8bdc228a0a88e"
+}

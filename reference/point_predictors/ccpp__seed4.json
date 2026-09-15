@@ -1,0 +1,12 @@
+{
+ "dataset": "ccpp",
+ "seed": 4,
+ "max_rows": 10000,
+ "row_fingerprint": "dbf3d946e3d07649",
+ "residual_sha": "e5572499eff08bac",
+ "pt_sha256": "e9a329c2a92e7ee443e92d553a32b9b123c4fb074796473718066c47a6d2a150",
+ "fit_device": "cpu",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126",
+ "source_pt_sha256": "e81454d9f0c71e055f5c09361d08f0c4a4a497a6088dfe895500e6f841028d0f"
+}

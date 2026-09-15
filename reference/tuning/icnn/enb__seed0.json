@@ -1,0 +1,25 @@
+{
+ "dataset": "enb",
+ "seed": 0,
+ "method": "icnn",
+ "learning_rate": 0.002,
+ "batch_size": 32,
+ "patience": 80,
+ "encoder_hidden_dims": [
+  256,
+  128
+ ],
+ "row_fingerprint": "aba14cf57839e5f0",
+ "residual_sha": "7ffd06e69fdc7d8a",
+ "max_rows": null,
+ "device": "cuda",
+ "device_name": "Quadro RTX 6000",
+ "n_trainings": 2,
+ "tuning_gamma": [
+  1.0,
+  1.0
+ ],
+ "strong_convexity": 0.001,
+ "encoder_selected_by": "coverage_admissible_min_calibrated_validation_volume",
+ "encoder_input": "xf"
+}

@@ -1,0 +1,12 @@
+{
+ "dataset": "beijing_pm25",
+ "seed": 2,
+ "max_rows": 10000,
+ "row_fingerprint": "af340c53ffc8b91e",
+ "residual_sha": "f7ef770bb3eb66c8",
+ "pt_sha256": "b6c953b6621c9233e8d6e0a1f9f25dbd5048d0ba40a9cf562c213623df432f86",
+ "fit_device": "cpu",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126",
+ "source_pt_sha256": "a01cb6d5f1cb3f8c1e35c3aee755678985dd2c3d4a74a3a698b859fe076ad9c8"
+}

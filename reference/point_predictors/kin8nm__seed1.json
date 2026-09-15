@@ -1,0 +1,12 @@
+{
+ "dataset": "kin8nm",
+ "seed": 1,
+ "max_rows": null,
+ "row_fingerprint": "e2319e16d6266b23",
+ "residual_sha": "dd33fc25a8cd53cf",
+ "pt_sha256": "19c26c28ae16a323915eaf4eba082b14bb2507bb37b28590e2b3b289e432445e",
+ "fit_device": "cpu",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126",
+ "source_pt_sha256": "b45f8d8de022345becde3a060a18bc84be98e97c0a5ab91a21a07b5a09213926"
+}

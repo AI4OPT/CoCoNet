@@ -1,0 +1,12 @@
+{
+ "dataset": "sarcos",
+ "seed": 0,
+ "max_rows": 20000,
+ "row_fingerprint": "e81bd22b491bca99",
+ "residual_sha": "9c6b820c1a16d8b1",
+ "pt_sha256": "17ecda80161d14a8c7bfddc296c6c5d6e14fe40897c4907a344e346720f5239f",
+ "fit_device": "cpu",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126",
+ "source_pt_sha256": "f473fd5b38092b228ab40e3d4445f52c22aece782a7666fc744b46d9a7dc8ad6"
+}

@@ -1,7 +1,7 @@
 __pycache__/
 *.pyc
-.venv/
-*.egg-info/
-.pytest_cache/
 results/
-scripts/logs/
+tables/
+logs/
+data/raw/*.part
+data/raw/*.csv.tmp

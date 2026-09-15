@@ -1,0 +1,12 @@
+{
+ "dataset": "concrete",
+ "seed": 0,
+ "max_rows": null,
+ "row_fingerprint": "8501bdf8a8c06eb2",
+ "residual_sha": "a3266cb533a38e89",
+ "pt_sha256": "dab5076fda7a0b5121cc95366b169256bcb1020ec13da4815ef5e78850fc4073",
+ "fit_device": "cpu",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126",
+ "source_pt_sha256": "b13953036dce82b01968847579aba852e088e39999c65a48e280058b549f8425"
+}

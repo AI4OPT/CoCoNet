@@ -1,0 +1,12 @@
+{
+ "dataset": "argoverse2_d2",
+ "seed": 3,
+ "max_rows": 20000,
+ "row_fingerprint": "5924baadee7c8170",
+ "residual_sha": "7bdf8f4dce78d7a4",
+ "pt_sha256": "df68c31bd34e78888ae61c140a8e9dee94ab60f584354d5078d1870307291898",
+ "fit_device": "cpu",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126",
+ "source_pt_sha256": "ad83444e7582bde6335291920fbab71a46dd78b92705e9a4dfef7fe153091179"
+}

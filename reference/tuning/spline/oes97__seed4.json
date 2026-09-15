@@ -1,0 +1,28 @@
+{
+ "dataset": "oes97",
+ "seed": 4,
+ "method": "spline",
+ "learning_rate": 0.002,
+ "batch_size": 80,
+ "patience": 80,
+ "encoder_hidden_dims": [
+  64,
+  32
+ ],
+ "row_fingerprint": "c54ccf5c2c78e170",
+ "residual_sha": "9178bd8ee7a9d3ac",
+ "max_rows": null,
+ "device": "cpu",
+ "device_name": "cpu",
+ "n_trainings": 7,
+ "tuning_gamma": [
+  1.0,
+  1.0
+ ],
+ "num_knots": 8,
+ "stage_rules": {
+  "num_knots": "coverage_admissible_min_calibrated_validation_volume",
+  "batch_size": "coverage_admissible_min_calibrated_validation_volume",
+  "encoder_hidden_dims": "coverage_admissible_min_calibrated_validation_volume"
+ }
+}

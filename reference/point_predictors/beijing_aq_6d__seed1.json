@@ -1,0 +1,12 @@
+{
+ "dataset": "beijing_aq_6d",
+ "seed": 1,
+ "max_rows": 20000,
+ "row_fingerprint": "79b53246794e5621",
+ "residual_sha": "ad6a54b6f678af5a",
+ "pt_sha256": "63e1b3eaf6d37813d60776a5f8bec8fee617f65e53b8a51b09c718cb680ba961",
+ "fit_device": "cpu",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126",
+ "source_pt_sha256": "84acc2632ab45cd406b7c42d8bddc83ffaf1941aa08245d6566543fa66c67f3d"
+}

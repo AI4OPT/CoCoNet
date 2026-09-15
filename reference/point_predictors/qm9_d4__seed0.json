@@ -1,0 +1,12 @@
+{
+ "dataset": "qm9_d4",
+ "seed": 0,
+ "max_rows": 20000,
+ "row_fingerprint": "e81bd22b491bca99",
+ "residual_sha": "6d3e17c030a31b1e",
+ "pt_sha256": "08bf0c2fb329736c163c4ba93a9e6f95dc835aecb44e141362b5b7932e9c3e30",
+ "fit_device": "cpu",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126",
+ "source_pt_sha256": "96be47bdcf1b7bb1ecdf0ae2f0bd1ba9d53c332c3aa0c70acbc78c87d33c65c8"
+}

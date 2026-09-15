@@ -1,0 +1,28 @@
+{
+ "dataset": "beijing_pm25",
+ "seed": 0,
+ "method": "spline",
+ "learning_rate": 0.002,
+ "batch_size": 32,
+ "patience": 80,
+ "encoder_hidden_dims": [
+  64,
+  32
+ ],
+ "row_fingerprint": "596f4167fb6ee833",
+ "residual_sha": "7c15d942d0dfd3a3",
+ "max_rows": 10000,
+ "device": "cpu",
+ "device_name": "cpu",
+ "n_trainings": 7,
+ "tuning_gamma": [
+  1.0,
+  1.0
+ ],
+ "num_knots": 8,
+ "stage_rules": {
+  "num_knots": "coverage_admissible_min_calibrated_validation_volume",
+  "batch_size": "coverage_admissible_min_calibrated_validation_volume",
+  "encoder_hidden_dims": "coverage_admissible_min_calibrated_validation_volume"
+ }
+}

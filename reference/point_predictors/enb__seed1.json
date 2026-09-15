@@ -1,0 +1,12 @@
+{
+ "dataset": "enb",
+ "seed": 1,
+ "max_rows": null,
+ "row_fingerprint": "561aa5f265a8e3ca",
+ "residual_sha": "aa49f3ab945ac67d",
+ "pt_sha256": "5d155763376eafe0f9f20cd171122e6abe779c18a094331e1d67cbe410bc3ce9",
+ "fit_device": "cpu",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126",
+ "source_pt_sha256": "76ecc1495882c80d3986a21e03946923c6f40af11164d59813b237b8564185f3"
+}

@@ -1,0 +1,12 @@
+{
+ "dataset": "oes97",
+ "seed": 2,
+ "max_rows": null,
+ "row_fingerprint": "1a1c41eda6a158dc",
+ "residual_sha": "5025aa546d370bac",
+ "pt_sha256": "d3dc3f2cee200a2cb82103b5448da39bfbb9ba25f52fa1671748a494085b86e4",
+ "fit_device": "cpu",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126",
+ "source_pt_sha256": "5cfc7d7b26d47c6fddf4091b01feba90c20e1240c506ba2bfa4f227fa4dcb597"
+}

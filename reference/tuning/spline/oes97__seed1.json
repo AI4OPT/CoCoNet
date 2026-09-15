@@ -1,0 +1,28 @@
+{
+ "dataset": "oes97",
+ "seed": 1,
+ "method": "spline",
+ "learning_rate": 0.002,
+ "batch_size": 80,
+ "patience": 80,
+ "encoder_hidden_dims": [
+  64,
+  32
+ ],
+ "row_fingerprint": "4c52a4d0285628a1",
+ "residual_sha": "3264a76db4dec5c7",
+ "max_rows": null,
+ "device": "cpu",
+ "device_name": "cpu",
+ "n_trainings": 7,
+ "tuning_gamma": [
+  1.0,
+  1.0
+ ],
+ "num_knots": 2,
+ "stage_rules": {
+  "num_knots": "fallback_undercoverage_simpler",
+  "batch_size": "fallback_undercoverage_simpler",
+  "encoder_hidden_dims": "fallback_undercoverage_simpler"
+ }
+}

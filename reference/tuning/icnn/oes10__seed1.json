@@ -1,0 +1,25 @@
+{
+ "dataset": "oes10",
+ "seed": 1,
+ "method": "icnn",
+ "learning_rate": 0.002,
+ "batch_size": 32,
+ "patience": 80,
+ "encoder_hidden_dims": [
+  256,
+  128
+ ],
+ "row_fingerprint": "4b29309a7df38443",
+ "residual_sha": "4638e4a317803c85",
+ "max_rows": null,
+ "device": "cuda",
+ "device_name": "Quadro RTX 6000",
+ "n_trainings": 2,
+ "tuning_gamma": [
+  1.0,
+  1.0
+ ],
+ "strong_convexity": 0.001,
+ "encoder_selected_by": "coverage_admissible_min_calibrated_validation_volume",
+ "encoder_input": "xf"
+}

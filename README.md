@@ -1,146 +1,118 @@
-CLeS
+# Convex Uncertainty Sets for Multivariate Regression (CoCoNet)
 
-A minimal, from-scratch implementation of multivariate conformal prediction with a *learned*
-conformity score, trained with the "tau1" loss and calibrated by split conformal, plus a set
-of comparison methods.
+Code, data and fitted artifacts to reproduce the tables of the paper: 25 multivariate datasets
+(main table), 6 univariate datasets and the encoder-input ablation (appendix), at 90% target
+coverage over seeds 0-4.
 
-This is a cleaned-down extraction of a larger research codebase: no experiment-tracking
-machinery, no synthetic data, no automatic hyperparameter search, no loss-formulation
-ablations. Every dataset used ships in `data/`.
-
-## The methods
-
-For covariates `x` and target `y`, every method here fits a frozen mean predictor `mu_hat(x)`
-and works with the residual `r = y - mu_hat(x)`. A conformity score `S(x, r)` measures how
-atypical `r` is for `x`; the calibrated prediction set at a test point is
-`{y : S(x, y - mu_hat(x)) <= q_hat}`, with `q_hat` fixed by the classical split-conformal
-order statistic on held-out data (`learnscore/calibrate.py`) -- this gives a finite-sample
-coverage guarantee independent of how well the score fit.
-
-**CLeS family** (`icnn`, `asymmetric_linear`, `spline`) -- three convex conformity scores,
-each trained by minimizing the same loss:
-
-```
-L = L_size + lambda_miss * L_miss + lambda_cov * L_cov
-```
-
-at a threshold `tau` that's either fixed at 1 or the batch's empirical `(1 - alpha)` score
-quantile (`tau_mode` in the config). `L_size` is the set's volume, `L_miss` a scale-invariant
-hinge on points outside the set, `L_cov` pulls smoothed coverage toward `1 - alpha`. See
-`learnscore/loss.py` and `learnscore/train.py`.
-
-- `learnscore/model.py` -- the ICNN score. Convex by construction (nonnegative combinations
-  of convex, nondecreasing layers); no closed-form inverse, so its width/area/volume come
-  from root-finding (`learnscore/volume.py`).
-- `learnscore/model_asymmetric_linear.py` -- a per-coordinate asymmetric-linear score; the
-  induced set is an exact axis-aligned hyperrectangle, no root-finding needed.
-- `learnscore/model_spline.py` -- a per-coordinate convex piecewise-linear score; also an
-  exact hyperrectangle, inverted in closed form.
-
-**MVCS** (`mvcs`) -- a different paper's method (Braun, Aolaritei, Jordan & Bach,
-arXiv:2503.19068), included as a comparison: a learned p-norm ball reshaped by a
-covariate-dependent linear map, with an exact closed-form volume. Trained the same way as the
-CLeS family (`learnscore/model_mvcs.py`; see its docstring for the simplifications relative
-to the paper's own three-stage training procedure).
-
-**Baselines** (`absolute_residual`, `global_ellipsoid`, `empirical_copula`) -- no
-gradient-based training at all, just a `.fit()` on the calibration-set residuals (nothing to
-fit for `absolute_residual`): a fixed hypercube, an ellipsoid from one global covariance
-matrix, and an axis-aligned box from per-coordinate empirical CDFs, respectively. See
-`learnscore/baseline_*.py`.
-
-Set `method:` in the config (or `--method` isn't a flag -- it's a config key, since most runs
-fix it for a whole sweep) to choose among the seven.
-
-## Install
-
-```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-## Usage
-
-```bash
-python -m learnscore.cli run --dataset concrete --seed 0 --config configs/default.yaml
-```
-
-Prints a JSON line with `coverage`, `mean_volume_original_scale`, `conformal_quantile`, and
-`selected_epoch`. Pass `--output-dir results/` to also append the row to
-`results/<dataset>.csv` **and** save the calibrated set's actual geometry to
-`results/<dataset>_<method>_seed<seed>_sets.npz` -- for every test point, a center (the point
-prediction) plus a cloud of boundary points around it, in the original response units, so the
-set itself (not just its coverage/volume summary) is usable downstream: exact at
-`residual_dim` 1 (the two interval endpoints) and 2 (a polygon), a QMC boundary sample above
-that. See `learnscore/geometry.py`.
-
-Every dataset in `learnscore/datasets/registry.py` is runnable this way; run
-`python -c "from learnscore.datasets.registry import REGISTRY; print(sorted(REGISTRY))"`
-for the full list.
-
-## Configuration
-
-`configs/default.yaml` holds global defaults (`method`, architecture, optimizer, split
-fractions, `alpha`, `tau_mode`) plus a `dataset_overrides.<name>` block for hyperparameters
-that were tuned per dataset in the original study (encoder width, learning rate, batch size,
-the loss weights `lambda_miss`/`lambda_cov`). Only `concrete`, `enb`, and `oes10` have
-overrides checked in here, recovered from the original repo's tuning artifacts -- add more
-datasets' tuned values the same way, or just run with the global defaults.
-
-The one setting that defines the tau1 method itself: `tau_mode: fixed` with `tau_fixed: 1.0`
-reproduces the paper's tau=1 setting; `tau_mode: quantile` trains against the batch's own
-empirical `(1 - alpha)` quantile instead.
-
-## Datasets
-
-`data/<name>/` ships the raw file(s) each dataset's loader reads -- see
-`learnscore/datasets/loaders.py`. A few dimension-variant families (`argoverse2_d2`/`_d4`,
-`qm9_d2..d8`, `w300_d2..d16`) share one underlying table across variants rather than
-duplicating it. Datasets are UCI/OpenML/Mulan-derived real regression tasks; no synthetic
-data is included. See `data/README.md` for per-dataset provenance.
-
-## Reproducing paper_results_tau1
-
-`tests/test_reproduction.py` (marked `slow`) trains the ICNN on `concrete`, `enb`, and
-`oes10` at seed 0 with the exact recorded hyperparameters and checks the result against
-`tests/reference_metrics.json`, snapshotted from the original study's `raw_metrics.csv`.
-This is an independent rewrite, not a byte-for-byte port, so exact numeric reproduction
-isn't the bar -- the test instead checks coverage lands within 0.10 of the recorded value
-(both near the 90% nominal target) and volume lands within a factor of 3.
-
-Training takes more than a minute of compute, so run it as a batch job rather than
-interactively:
-
-```bash
-sbatch scripts/run_tests.sbatch
-```
-
-Fast unit tests (`test_loss.py`, `test_calibration.py`, `test_model.py`, `test_mvcs.py`,
-`test_baselines.py`) check the loss formula, the split-conformal order statistic, and each
-method's score/volume math directly on tiny synthetic tensors, and run in seconds.
+Two learned convex conformity scores (CoCoNet_ICNN and CoCoNet_Spline) are compared with five
+baselines (absolute residual, empirical copula, global and local ellipsoid, convex MVCS; LW-SC
+replaces the multivariate baselines at d = 1). Every method receives the residuals of one
+frozen MLP point predictor per (dataset, seed), is calibrated by split conformal prediction on
+D_cal and is scored by joint coverage and (mean volume)^(1/d) on D_test.
 
 ## Layout
 
 ```
-learnscore/
-  model.py                    the ICNN score + root-finding-based width/area/volume
-  model_asymmetric_linear.py  the asymmetric-linear score (CLeS family)
-  model_spline.py              the convex spline score (CLeS family)
-  model_mvcs.py                 the MVCS baseline (Braun et al.)
-  baseline_absolute_residual.py \
-  baseline_ellipsoid.py          } the three fit-only baselines
-  baseline_empirical_copula.py  /
-  volume.py                    generic root-finding volume/width/area, used by model.py
-  geometry.py                  the calibrated set's boundary, for any method
-  loss.py                      the tau1 loss (CLeS family + MVCS)
-  train.py                     training loop + checkpoint selection
-  calibrate.py                 split-conformal threshold
-  evaluate.py                  test-set coverage/volume
-  aggregate.py                 cross-seed aggregation, (mean V)^(1/d)
-  point_predictor.py           frozen mean regressor mu_hat(x)
-  datasets/                    registry, loaders, splitting/standardization
-  cli.py                       entry point, method dispatch
-configs/                       default.yaml -- global + per-dataset hyperparameters
-data/                          one folder per dataset
-tests/                         unit tests + the paper-reproduction check
+run.py                   one method on one dataset (all seeds), writes results/<dataset>/<method>/seed<S>/row.json
+fit_point_predictor.py   fit and freeze the MLP point predictor of a dataset (reference/point_predictors has the paper's)
+make_table.py            results/ -> tables/ (aggregated.csv, multivariate.tex, univariate.tex); --compare diffs against the paper
+configs/paper.yaml       every setting of the paper's protocol
+configs/datasets.yaml    the 31 datasets: loader, target columns, row cap, paper row name
+coconet/pipeline.py      prepare_data (split, preprocessing, residuals) and the seven run_<method> functions
+coconet/tuning.py        per-(dataset, seed) tuning of the learned scores' optimizer settings
+coconet/models/          icnn.py, spline.py (the two scores), mlp.py, volume_estimator.py
+coconet/training/        the size + miss + coverage loss, the gamma-grid search, training loops, checkpoint selection
+coconet/conformal/       calibration, ellipsoid, empirical_copula, mvcs
+coconet/data/            loaders, preprocessing, splits
+data/raw/                raw dataset files (UCI/OpenML files are downloaded on first use if missing)
+reference/               the paper's frozen point predictors, tuned selections and per-cell numbers (paper_cells.csv)
+slurm/                   PACE job scripts
 ```
+
+## Setup
+
+Python 3.13 with `pip install -r requirements.txt` (the paper used torch 2.7.1+cu126, numpy 2.3.1,
+pandas 2.3.1, scipy 1.16.0, scikit-learn 1.7.0).
+
+## Running
+
+One method on one dataset, all five seeds, with the paper's configuration:
+
+```
+python run.py --dataset enb --method icnn --config configs/paper.yaml          # GPU
+python run.py --dataset enb --method spline --config configs/paper.yaml        # CPU
+python run.py --dataset enb --method mvcs --seeds 0 1                          # CPU, two seeds
+python run.py --dataset concrete --method locally_weighted                     # univariate baseline
+```
+
+Methods: `absolute_residual`, `empirical_copula`, `global_ellipsoid`, `local_ellipsoid`, `mvcs`,
+`spline`, `icnn` (d >= 2) and `absolute_residual`, `locally_weighted`, `mvcs`, `spline`, `icnn`
+(d = 1). Datasets: the keys of `configs/datasets.yaml`.
+
+By default a run loads the paper's frozen point predictor and tuned selection for that
+(dataset, seed) from `reference/` and checks that this run's data split and residuals are the
+ones they were made with. To regenerate them instead:
+
+```
+python fit_point_predictor.py --dataset enb --out my_predictors                 # CPU, 4 threads
+python run.py --dataset enb --method icnn --point-predictor-dir my_predictors --tuning-dir my_tuning --tune
+```
+
+The encoder-input ablation runs the ICNN with `--encoder-input {f,x,none,id_xf,id_x,id_f}`
+(`xf` is the paper's CoCoNet_ICNN); the paper reused the production tuning, so pass the default
+`--tuning-dir`.
+
+On PACE:
+
+```
+sbatch slurm/run_cpu.sbatch enb spline        # any CPU method
+sbatch slurm/run_icnn.sbatch enb              # CoCoNet_ICNN on a Quadro RTX 6000
+bash slurm/submit_all.sh                      # every (dataset, method) of the tables
+```
+
+Tables:
+
+```
+python make_table.py             # tables/aggregated.csv, tables/multivariate.tex, tables/univariate.tex
+python make_table.py --compare   # plus tables/comparison_with_paper.csv against reference/paper_cells.csv
+```
+
+## Reproducing the paper's numbers
+
+The numbers depend on the device, so the paper's device assignment must be kept:
+
+- CoCoNet_ICNN trains and measures its test volume on the GPU. The paper used a Quadro RTX 6000;
+  on that card a rerun reproduces the recorded volumes to about 1e-5 relative. Another GPU model
+  changes the floating-point results and, through the checkpoint and gamma selection steps, can
+  change the selected model.
+- Everything else (point predictor, baselines, CoCoNet_Spline, MVCS) runs on the CPU with 4
+  threads and no GPU visible; those numbers are bit-reproducible. The thread count matters: the
+  frozen point predictor's residuals are reproduced only with `OMP_NUM_THREADS=4`.
+
+`reference/paper_cells.csv` lists, for every (dataset, seed, method) of the tables, the volume
+and coverage that entered the paper; `make_table.py --compare` diffs a rerun against it. A rerun
+of every method on ENB seed 0 (ICNN on a Quadro RTX 6000, the rest on 4 CPU threads), of the
+global ellipsoid on SGEMM seed 1 and of the univariate baselines on Concrete seed 0 reproduced
+the recorded volumes and coverages exactly, and refitting the point predictors of ENB and SGEMM
+reproduced the recorded residuals bit for bit.
+
+## Protocol (configs/paper.yaml)
+
+Split 25/30/25/20 (D_pred / D_score / D_cal / D_test) from one seeded permutation; large datasets
+are first capped to a seeded random sample (`max_rows` in `configs/datasets.yaml`). Features are
+standardized / one-hot encoded and targets standardized with statistics of D_pred only; volumes
+are reported on the original target scale.
+
+The learned scores minimise (E[V])^(1/d) + lambda_miss * E[(S - 1)_+] + lambda_cov * (E[sigmoid(10 (1 - S))] - 0.9)^2
+on D_score with the threshold fixed at 1, Adam, gradient clipping at 5, at most 400 epochs with
+patience 80. The checkpoint is chosen every 5 epochs by calibrated validation coverage and size.
+The two weights are gamma multiples of reference scales probed on the initialised model, searched
+over gamma_miss in {0.01, 0.03, 1, 10} x gamma_cov in {0, 0.1, 1}; the winner is the
+coverage-admissible candidate with the smallest validation size. The ICNN's encoder width
+({[64,32], [256,128]}) and the spline's knots {2,4,6,8}, batch size {32,64,128} and encoder width
+are tuned per (dataset, seed) at the neutral weights. The ICNN's test volume is the converged
+whitened estimator at 2^15 directions (2^14 at d = 1) with a doubling certificate.
+
+MVCS_conv is the fixed-centre convex (p >= 1) MVCS of Braun et al. with the authors' grid (60
+candidates, selected by validation objective); the ellipsoids, the copula and LW-SC follow their
+papers with the settings listed in the config.

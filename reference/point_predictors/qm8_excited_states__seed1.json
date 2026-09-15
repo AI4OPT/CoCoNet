@@ -1,0 +1,12 @@
+{
+ "dataset": "qm8_excited_states",
+ "seed": 1,
+ "max_rows": 20000,
+ "row_fingerprint": "79b53246794e5621",
+ "residual_sha": "978d205925c35426",
+ "pt_sha256": "dd33cb7b9acd335717567df08c50c502fc17299c861a6a0bacd4035eba44ff4a",
+ "fit_device": "cpu",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126",
+ "source_pt_sha256": "20d1f3d94839f6bf6777ea1cfc824b8e9e10ab0f53282bce9e10936b75db968e"
+}

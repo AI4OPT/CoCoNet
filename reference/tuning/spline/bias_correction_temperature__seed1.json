@@ -1,0 +1,28 @@
+{
+ "dataset": "bias_correction_temperature",
+ "seed": 1,
+ "method": "spline",
+ "learning_rate": 0.002,
+ "batch_size": 128,
+ "patience": 80,
+ "encoder_hidden_dims": [
+  64,
+  32
+ ],
+ "row_fingerprint": "26b99b6ed9a4827c",
+ "residual_sha": "e0852598a9d02e9a",
+ "max_rows": null,
+ "device": "cpu",
+ "device_name": "cpu",
+ "n_trainings": 7,
+ "tuning_gamma": [
+  1.0,
+  1.0
+ ],
+ "num_knots": 4,
+ "stage_rules": {
+  "num_knots": "coverage_admissible_min_calibrated_validation_volume",
+  "batch_size": "coverage_admissible_min_calibrated_validation_volume",
+  "encoder_hidden_dims": "coverage_admissible_min_calibrated_validation_volume"
+ }
+}

@@ -1,0 +1,12 @@
+{
+ "dataset": "bias_correction_temperature",
+ "seed": 4,
+ "max_rows": null,
+ "row_fingerprint": "2dfbf0798511c6a5",
+ "residual_sha": "e1426020a7c732c2",
+ "pt_sha256": "be0b0754ffa0643d7ce4fc5fce00b1728e209e1f04351a787a19971198696c1c",
+ "fit_device": "cpu",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126",
+ "source_pt_sha256": "3904e6abb65633dbad9c6aa9d1f48ada81eae28be4863383a638fcde074be768"
+}

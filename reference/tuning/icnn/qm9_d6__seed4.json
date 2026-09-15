@@ -1,0 +1,25 @@
+{
+ "dataset": "qm9_d6",
+ "seed": 4,
+ "method": "icnn",
+ "learning_rate": 0.002,
+ "batch_size": 32,
+ "patience": 80,
+ "encoder_hidden_dims": [
+  256,
+  128
+ ],
+ "row_fingerprint": "1ad0f0a5afe9c772",
+ "residual_sha": "29efd448491f45af",
+ "max_rows": 20000,
+ "device": "cuda",
+ "device_name": "Quadro RTX 6000",
+ "n_trainings": 2,
+ "tuning_gamma": [
+  1.0,
+  1.0
+ ],
+ "strong_convexity": 0.001,
+ "encoder_selected_by": "coverage_admissible_min_calibrated_validation_volume",
+ "encoder_input": "xf"
+}

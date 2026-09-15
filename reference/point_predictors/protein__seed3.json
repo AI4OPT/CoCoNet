@@ -1,0 +1,12 @@
+{
+ "dataset": "protein",
+ "seed": 3,
+ "max_rows": 10000,
+ "row_fingerprint": "b231fccf818b2017",
+ "residual_sha": "c4d3eeb603443054",
+ "pt_sha256": "35de19f5f84af5de3089996be54f7b8591ba9ea0126b8fcacbf3933d69120088",
+ "fit_device": "cpu",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126",
+ "source_pt_sha256": "846ecb4f6359a8ac83b831521a4864f6dfb361b951dd71b576d85a83a55d422f"
+}

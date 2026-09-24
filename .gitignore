@@ -1,7 +1,6 @@
 __pycache__/
 *.pyc
 results*/
-tables/
 logs/
 third_party/
 data/raw/*.part

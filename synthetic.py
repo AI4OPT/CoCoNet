@@ -2,7 +2,6 @@
 
     python synthetic.py --shape triangle --method icnn            # seeds 42-46
     python synthetic.py --shape triangle --method spline --seeds 42
-    python synthetic.py --table                                   # results_synthetic -> tables/synthetic.tex
 
 Per (shape, seed): generate the data (coconet/data/synthetic.py), train and calibrate the method
 with the settings of the `synthetic` block in configs/experiment.yaml, and score it on the test
@@ -34,8 +33,6 @@ from coconet.tuning import tune_spline  # noqa: E402
 from coconet.utils import load_yaml, read_json, residual_sha, set_seed, write_json  # noqa: E402
 
 METHODS = ("absolute_residual", "empirical_copula", "global_ellipsoid", "local_ellipsoid", "mvcs", "spline", "icnn")
-LABELS = {"absolute_residual": "Abs. Res.", "empirical_copula": "Emp. Cop.", "global_ellipsoid": "G-Ellip.",
-          "local_ellipsoid": "L-Ellip.", "mvcs": "MVCS", "spline": "CoCoNet_Spline", "icnn": "CoCoNet_ICNN"}
 
 
 def make_data(shape, seed, s):
@@ -130,47 +127,14 @@ def run(args, cfg):
               f"V/V*={row['v_over_v_star']:.4f} IoU={row['iou']:.4f}")
 
 
-def table(args):
-    import json
-    rows = [json.loads(p.read_text()) for p in sorted(Path(args.output_dir).glob("*/*/seed*/row.json"))]
-    df = pd.DataFrame(rows)
-    df = df[df["status"] == "success"]
-    lines = [r"\begin{tabular}{ll" + "c" * len(METHODS) + "}", r"\toprule",
-             "Shape & Metric & " + " & ".join(LABELS[m] for m in METHODS) + r" \\", r"\midrule"]
-    for shape in SHAPES:
-        g = df[df["shape"] == shape]
-        if g.empty:
-            continue
-        for metric, key in (("IoU", "iou"), (r"$V/V^\star$", "v_over_v_star"), ("Coverage", "coverage")):
-            cells = []
-            for m in METHODS:
-                v = g[g["method"] == m][key].to_numpy(dtype=float)
-                cells.append(f"${v.mean():.3f} \\pm {v.std(ddof=1):.3f}$" if len(v) > 1 else "--")
-            lines.append(f"{shape if metric == 'IoU' else ''} & {metric} & " + " & ".join(cells) + r" \\")
-        lines.append(r"\midrule")
-    lines[-1] = r"\bottomrule"
-    lines.append(r"\end{tabular}")
-    out = REPO / "tables"
-    out.mkdir(exist_ok=True)
-    (out / "synthetic.tex").write_text("\n".join(lines) + "\n")
-    summary = df.groupby(["shape", "method"])[["iou", "v_over_v_star", "coverage"]].agg(["mean", "std", "count"])
-    print(summary.to_string(float_format=lambda v: f"{v:.3f}"))
-
-
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--shape", choices=sorted(SHAPES))
-    p.add_argument("--method", choices=METHODS)
+    p.add_argument("--shape", required=True, choices=sorted(SHAPES))
+    p.add_argument("--method", required=True, choices=METHODS)
     p.add_argument("--seeds", nargs="+", type=int, default=None, help="default: the config's synthetic seeds")
     p.add_argument("--config", default=str(REPO / "configs" / "experiment.yaml"))
     p.add_argument("--output-dir", default=str(REPO / "results_synthetic"))
-    p.add_argument("--table", action="store_true", help="aggregate the results into tables/synthetic.tex")
     args = p.parse_args()
-    if args.table:
-        table(args)
-        return 0
-    if not (args.shape and args.method):
-        p.error("--shape and --method are required (or --table)")
     run(args, load_yaml(args.config))
     return 0
 

@@ -3,4 +3,5 @@ __pycache__/
 results*/
 tables/
 logs/
+third_party/
 data/raw/*.part

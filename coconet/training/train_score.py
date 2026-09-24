@@ -85,6 +85,11 @@ def train_score(build_model, X, r, X_val, r_val, alpha, settings, lambda_miss, l
             optimizer.zero_grad()
             total, _, _, _ = loss(xb, rb)
             total.backward()
+            # Weights the loss does not reach (the encoder of the no-context ICNN arm) get a zero
+            # gradient, so they count in the clipping norm exactly as in the original runs.
+            for name, p in model.named_parameters():
+                if p.grad is None and not name.endswith("bias") and not name.startswith("b."):
+                    p.grad = torch.zeros_like(p)
             torch.nn.utils.clip_grad_norm_(model.parameters(), settings.grad_clip_norm)
             optimizer.step()
             train_losses.append(total.item())

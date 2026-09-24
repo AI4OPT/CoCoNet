@@ -2,8 +2,9 @@
 
 Learned convex prediction regions for multivariate regression with split-conformal coverage,
 plus the baselines they are compared with. This repository contains the code, the raw data and
-the fitted point predictors needed to rerun every experiment: 25 multivariate datasets, 6
-univariate datasets and an encoder-input ablation, at 90% target coverage over seeds 0-4.
+code and raw data needed to rerun every experiment: four 2-D synthetic shapes with a known
+optimal region, 30 multivariate datasets, 6 univariate datasets, an extended comparison with
+further baselines and an encoder-input ablation, all at 90% target coverage.
 
 ![Overview](figures/overview.png)
 
@@ -26,22 +27,36 @@ and (mean volume)^(1/d).
 | MVCS | `mvcs` | convex (p >= 1) minimum-volume covering set |
 | LW-SC | `locally_weighted` | locally weighted split-conformal interval (univariate only) |
 
+The extended multivariate comparison adds:
+
+| Method | `--method` | Region |
+|---|---|---|
+| MVCS, free q | `mvcs_free` | the same set with a free exponent (q >= 0.1, not convex when q < 1) |
+| MVCS multi-norm, q >= 1 | `mvcs_multi` | one global set, a scaled q_j-norm ball per orthant after a rotation, every q_j >= 1 |
+| MVCS multi-norm, free q | `mvcs_multi_free` | the same with free exponents |
+| PBS | `pbs` | pullback of a Euclidean ball through a conditional neural optimal-transport map |
+
+The two multi-norm variants run the MVCS authors' own code; fetch it once with
+`bash scripts/get_mvcs.sh` (it clones their public repository at a fixed commit into
+`third_party/`).
+
 ## Layout
 
 ```
 run.py                  one method on one dataset (all seeds) -> results/<dataset>/<method>/seed<S>/row.json
+synthetic.py            one method on one synthetic shape (all seeds) -> results_synthetic/, and its table
 fit_point_predictor.py  fit and save the MLP point predictor of a dataset
 make_table.py           results/ -> tables/ (aggregated.csv, multivariate.tex, univariate.tex)
 configs/experiment.yaml every setting of the experiments
-configs/datasets.yaml   the 31 datasets: loader, target columns, row cap
+configs/datasets.yaml   the 36 datasets: loader, target columns, row cap
+scripts/get_mvcs.sh     fetches the MVCS authors' code used by the multi-norm baselines
 coconet/pipeline.py     data preparation, one run_<method> per method, evaluation
 coconet/tuning.py       per-(dataset, seed) tuning of the learned scores
 coconet/models/         icnn.py, spline.py (the two scores), mlp.py, volume_estimator.py
 coconet/training/       loss, lambda grid search, training loops, checkpoint selection
-coconet/conformal/      calibration, ellipsoids, empirical copula, MVCS
-coconet/data/           loaders, preprocessing, splits
+coconet/conformal/      calibration, ellipsoids, empirical copula, MVCS (single and multi-norm), PBS
+coconet/data/           loaders, preprocessing, splits, synthetic shapes
 data/raw/               raw dataset files (UCI / OpenML files are downloaded on first use if missing)
-reference/              fitted point predictors (.pt + .json) and tuned settings (.json) per (dataset, seed)
 ```
 
 ## Setup
@@ -76,15 +91,20 @@ median-imputed from D_pred.
 | `sgemm` | SGEMM | UCI 440: four repeated run times of a GPU kernel configuration | 241,600 | 14 | 4 | 20,000 |
 | `beijing_aq_6d` | Beijing AQ-6D | UCI 501: six pollutants of one station-hour from its meteorology | 383,980 | 11 | 6 | 20,000 |
 | `communities_crime` | Communities Crime | UCI 211: six per-capita crime rates of a community | 2,215 | 124 | 6 | all |
+| `atp1d` | ATP1D | Mulan ATP1D (OpenML 41475): next-day minimum price of six flight/fare combinations from price-quote history | 337 | 411 | 6 | all |
 | `qm9_6d` | QM9-6D | QM9: first 6 properties (+ r2, zpve) | 130,831 | 22 | 6 | 20,000 |
 | `sarcos` | SARCOS | SARCOS inverse dynamics: 7 joint torques from the 21-D arm state | 48,933 | 21 | 7 | 20,000 |
 | `argoverse2_8d` | Argoverse2-8D | displacements at 1.5, 3, 4.5 and 6 s | 24,988 | 28 | 8 | 20,000 |
 | `qm9_8d` | QM9-8D | QM9: first 8 properties (+ Cv, U0) | 130,831 | 22 | 8 | 20,000 |
-| `beijing_aq_12d` | Beijing AQ-12D | UCI 501: PM2.5 of all 12 stations at one hour from every station's meteorology | 35,064 | 76 | 12 | 20,000 |
+| `beijing_aq_12d` | Beijing AQ-12D | UCI 501: PM2.5 of all 12 stations at one hour from every station's meteorology (hours with all 12 readings) | 28,663 | 76 | 12 | 20,000 |
 | `knee_contact_force` | Knee Contact Force | Zenodo 7253458: 12 knee contact-force peaks of a walking trial | 2,786 | 9 | 12 | all |
+| `wq` | WQ | Mulan water quality (OpenML 41491): 14 species and indicator concentrations from 16 physico-chemical measurements | 1,060 | 16 | 14 | all |
 | `qm7b` | QM7b | QM7b: the 14 molecular properties from Coulomb-matrix eigenvalues and element counts | 7,211 | 29 | 14 | all |
 | `oes10` | OES10 | OES 2010: 16 occupation employment counts per metropolitan area | 403 | 298 | 16 | all |
 | `oes97` | OES97 | OES 1997 | 334 | 263 | 16 | all |
+| `bdg2_fox` | BDG2-Fox | Building Data Genome 2, site Fox: hourly electricity of 16 buildings from site weather and calendar features | 17,537 | 12 | 16 | all |
+| `bdg2_eagle` | BDG2-Eagle | same, site Eagle | 17,105 | 12 | 16 | all |
+| `bdg2_lamb` | BDG2-Lamb | same, site Lamb | 17,544 | 12 | 16 | all |
 
 The Argoverse 2 and QM9 tasks of different d are cut from one table each; the columns that are
 targets of another variant are removed from the features. QM9 properties are taken in the order
@@ -114,28 +134,66 @@ python run.py --dataset concrete --method locally_weighted         # univariate 
 
 `python run.py --help` lists the remaining flags (output directory, config files, fitting
 the point predictor in place of loading it). Multivariate datasets take `absolute_residual`, `empirical_copula`, `global_ellipsoid`,
-`local_ellipsoid`, `mvcs`, `spline`, `icnn`; univariate ones `absolute_residual`,
-`locally_weighted`, `mvcs`, `spline`, `icnn`.
+`local_ellipsoid`, `mvcs`, `spline`, `icnn` and the four extended baselines; univariate ones
+`absolute_residual`, `locally_weighted`, `mvcs`, `spline`, `icnn`.
 
-By default a run loads the saved point predictor and tuned settings of that (dataset, seed)
-from `reference/` and checks that this run's data split and residuals are the ones they were
-made with. To regenerate them instead:
+**Volumes.** Each baseline reports the closed-form volume of its region by default. The
+multivariate tables instead measure every region with the same Monte Carlo estimator the ICNN
+uses (per test point, groups of 30 points, 2^15 directions, doubling until the size changes by
+less than 0.1%). Add `--volume estimator` to do the same; it uses a GPU when one is visible. PBS
+always reports its own change-of-variables volume, and univariate intervals are exact.
+
+**End to end.** Each run fits the MLP point predictor of the (dataset, seed), and for `icnn` and
+`spline` first tunes their settings. The tuned choice is saved in `<output-dir>/tuning/` together
+with a hash of the data split and residuals, and later runs of the same (dataset, seed) reuse it.
+Tuning is the expensive step: a few extra trainings per (dataset, seed). To reuse one set of point
+predictors across runs, save them once with `python fit_point_predictor.py --dataset enb --out
+my_predictors` and pass `--point-predictor-dir my_predictors`.
+
+The encoder-input ablation runs the ICNN with `--encoder-input {xf,f,x,none,id_xf,id_x,id_f}`
+(`xf` is the default model; the `id_` arms feed the raw context without an encoder MLP; `none`
+learns one global set) on ENB, Bias-Corr. Temp., Online Retail II, SCPF, QM8, Communities Crime,
+QM9-8D, Knee Contact Force, QM7b and OES97. Every arm reuses the tuned settings of the default
+model (run `--encoder-input xf` first; it tunes). Datasets with more than 10,000 rows are capped at
+10,000 for the ablation; give those runs their own output folder, since the split differs:
 
 ```
-python fit_point_predictor.py --dataset enb --out my_predictors
-python run.py --dataset enb --method icnn --point-predictor-dir my_predictors --tuning-dir my_tuning --tune
+python run.py --dataset qm8 --method icnn --max-rows 10000 --output-dir results_rows10000
+python run.py --dataset qm8 --method icnn --encoder-input x --max-rows 10000 --output-dir results_rows10000
 ```
-
-The encoder-input ablation runs the ICNN with `--encoder-input {f,x,none,id_xf,id_x,id_f}`
-(`xf` is the default model; the `id_` arms feed the raw context without an encoder MLP). The
-ablation reuses the tuned settings of the default model.
 
 Both scripts set `OMP_NUM_THREADS=4` unless it is already set. For the CPU methods hide any GPU
 with `CUDA_VISIBLE_DEVICES=`. A cluster job needs one node, 4 cores, 8 GB per core and, for
-`icnn`, one GPU. `icnn` was run on a Quadro RTX 6000; other GPU models give slightly different
-numbers because the checkpoint and lambda selections react to last-bit differences.
+`icnn`, one GPU. The reported numbers were produced on Intel Xeon CPUs with 4 threads and, for
+`icnn`, a Quadro RTX 6000. On the same hardware and package versions a run reproduces them; other
+CPU or GPU models change the last bits, which the tuning, lambda and checkpoint selections can
+amplify into small differences.
 
-Tables:
+### Synthetic shapes
+
+Four 2-D residual laws with a known optimal region: an ellipse, a rectangle, a triangle and a
+trapezoid (`coconet/data/synthetic.py`). The residual is uniform in a convex body B with
+probability 0.9 and uniform in the shell 1.6 B minus B otherwise, then rotated and scaled, so the
+body itself is the unique smallest region with 90% coverage; its area is V*. The input x is
+uniform on [-1, 1]^2 and every method is given the exact mean as its point prediction. Per seed
+(42-46): 2,500 training, 2,000 validation, 8,000 calibration and 1,000 test points.
+
+```
+python synthetic.py --shape triangle --method icnn                # GPU, seeds 42-46
+python synthetic.py --shape triangle --method spline --seeds 42   # CPU
+python synthetic.py --table                                       # tables/synthetic.tex
+```
+
+The methods are `absolute_residual`, `empirical_copula`, `global_ellipsoid`, `local_ellipsoid`,
+`mvcs`, `spline` and `icnn`. Each run reports test coverage, V/V* (mean region area over V*) and
+IoU: the region at an input and the true region are compared on a 500 x 500 grid, averaged over
+x = (0, 0) and 24 random inputs. The settings that differ from the real-data runs are in the
+`synthetic` block of the config: gamma_cov in {0, 0.1}, and the ICNN is not tuned (learning rate
+0.002, batch size 32, encoder [64, 32]). The spline is tuned as on real data. The reported numbers
+used 8 CPU threads for the CPU methods and, for `icnn`, an NVIDIA L40S (ellipse seeds 42, 45 and 46:
+an H200).
+
+### Tables
 
 ```
 python make_table.py      # tables/aggregated.csv, tables/multivariate.tex, tables/univariate.tex
@@ -150,7 +208,7 @@ original target scale.
 
 The learned scores minimise (mean V)^(1/d) + lambda_miss * mean[(S - 1)_+] + lambda_cov *
 (mean sigmoid(10 (1 - S)) - 0.9)^2 on D_score with the threshold fixed at 1, Adam, gradient
-clipping at 5, at most 400 epochs with patience 80. The checkpoint is chosen every 5 epochs by
+clipping at 5, at most 400 epochs (ICNN) or 300 epochs (spline) with patience 80. The checkpoint is chosen every 5 epochs by
 calibrated validation coverage and size. The two weights are gamma multiples of reference
 scales measured on the initialised model, searched over gamma_miss in {0.01, 0.03, 1, 10} x
 gamma_cov in {0, 0.1, 1}; the winner is the coverage-admissible candidate with the smallest
@@ -159,6 +217,9 @@ validation size. The ICNN's encoder width ({[64,32], [256,128]}) and the spline'
 neutral weights. The ICNN's test volume is a whitened Monte Carlo estimate at 2^16 directions
 (2^15 at d = 1) with a doubling check.
 
-MVCS is the convex (p >= 1) variant with its authors' hyperparameter grid (60 candidates,
-selected by validation objective); the ellipsoids, the copula and LW-SC use the settings listed
-in the config.
+MVCS uses its authors' hyperparameter grid (60 candidates, selected by validation objective),
+with p >= 1 (`mvcs`) or p = max(|p|, 0.1) (`mvcs_free`). The multi-norm variants use the
+authors' code and defaults with two splits; the convex one projects every exponent onto q >= 1
+after each step. PBS trains the five network configurations in the config and keeps the one
+with the smallest validation coverage error of its plug-in sets. The ellipsoids, the copula and
+LW-SC use the settings listed in the config.

@@ -27,13 +27,15 @@ class MvcsConfig:
     grad_clip_norm: float
     nonfinite_batch_tolerance: float
     seed: int
+    convex: bool = True
+    p_min: float = 0.1
 
 
 def train_mvcs(x, r, x_val, r_val, cfg):
     """Returns (MvcsScore, selected epoch, validation objective, per-epoch history)."""
     x = np.asarray(x, dtype=float).reshape(len(x), -1)
     torch.manual_seed(cfg.seed)
-    model = MvcsModel(x.shape[1], cfg.output_dim, cfg.hidden_dim, cfg.n_layers, cfg.ridge, cfg.p_init)
+    model = MvcsModel(x.shape[1], cfg.output_dim, cfg.hidden_dim, cfg.n_layers, cfg.ridge, cfg.p_init, cfg.convex, cfg.p_min)
     model.set_context_normalization(x)
     x_t = torch.as_tensor(x, dtype=torch.float32)
     r_t = torch.as_tensor(np.asarray(r, dtype=float), dtype=torch.float32)
@@ -82,7 +84,7 @@ def train_mvcs(x, r, x_val, r_val, cfg):
         except Exception:
             objective = float("nan")
         history.append({"epoch": epoch, "train_loss": running / max(seen, 1),
-                        "val_objective": objective, "p": float(model.p)})
+                        "val_objective": objective, "p": float(model.exponent())})
         if np.isfinite(objective):
             if best is None or objective < best[0]:
                 best = (objective, epoch, {k: v.detach().clone() for k, v in model.state_dict().items()})

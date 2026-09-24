@@ -1,9 +1,10 @@
-"""Fit the frozen MLP point predictor of a dataset for every seed and save it.
+"""Fit the frozen MLP point predictor of a dataset for every seed and save it (optional: run.py fits
+it on the fly; saved predictors can be passed to run.py with --point-predictor-dir).
 
     python fit_point_predictor.py --dataset enb --out my_predictors
 
 Runs on the CPU with 4 threads (the thread count changes the last bits of the weights; the
-shipped predictors were fitted this way). Writes <out>/<dataset>__seed<S>.pt and a .json with the
+reported numbers used predictors fitted this way). Writes <out>/<dataset>__seed<S>.pt and a .json with the
 split fingerprint and residual hash that run.py checks before using a predictor. Existing files
 are kept unless --force is given.
 """
@@ -32,7 +33,7 @@ def main():
     p.add_argument("--seeds", nargs="+", type=int, default=None)
     p.add_argument("--config", default=str(REPO / "configs" / "experiment.yaml"))
     p.add_argument("--datasets", default=str(REPO / "configs" / "datasets.yaml"))
-    p.add_argument("--out", default=str(REPO / "reference" / "point_predictors"))
+    p.add_argument("--out", required=True)
     p.add_argument("--force", action="store_true")
     a = p.parse_args()
     cfg, datasets = load_yaml(a.config), load_yaml(a.datasets)

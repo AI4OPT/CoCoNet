@@ -1,9 +1,10 @@
 """Aggregate results/ into tables.
 
-    python make_table.py            # tables/aggregated.csv, tables/multivariate.tex, tables/univariate.tex
+    python make_table.py     # tables/aggregated.csv, multivariate.tex, extended.tex, univariate.tex
 
 Per (dataset, method): size = (mean_s V_s)^(1/d) over the seeds with the population SD of
-V_s^(1/d), and mean coverage with its SD. Methods are ranked by size within each dataset.
+V_s^(1/d), and mean coverage with its SD. Within each table, methods are ranked by size per
+dataset and the mean rank is taken over the datasets where every method of the table has a value.
 """
 
 import argparse
@@ -21,8 +22,12 @@ from coconet.pipeline import MULTIVARIATE_METHODS, UNIVARIATE_METHODS  # noqa: E
 
 LABELS = {"absolute_residual": "Abs. Res.", "locally_weighted": "LW-SC", "empirical_copula": "Emp. Cop.",
           "global_ellipsoid": "G-Ellip.", "local_ellipsoid": "L-Ellip.", "mvcs": "MVCS",
+          "mvcs_free": "MVCS$_{\\mathrm{free}\\ q}$", "mvcs_multi": "MVCS$_{\\mathrm{multi},q\\geq1}$",
+          "mvcs_multi_free": "MVCS$_{\\mathrm{multi},\\mathrm{free}\\ q}$", "pbs": "PBS",
           "spline": "CoCoNet_Spline", "icnn": "CoCoNet_ICNN"}
 MULTIVARIATE, UNIVARIATE = list(MULTIVARIATE_METHODS), list(UNIVARIATE_METHODS)
+EXTENDED = ["mvcs", "mvcs_free", "mvcs_multi", "mvcs_multi_free", "pbs", "spline", "icnn"]
+EXTENDED_LABELS = {**LABELS, "mvcs": "MVCS$_{q\\geq1}$"}
 
 
 def load_rows(results_dir):
@@ -45,15 +50,17 @@ def aggregate(df):
         out.append({"dataset": ds, "method": m, "d": d, "n_seeds": len(g),
                     "size": float(np.mean(v) ** (1.0 / d)), "size_sd": float(np.std(v ** (1.0 / d))),
                     "coverage": float(cov.mean()), "coverage_sd": float(np.std(cov))})
-    agg = pd.DataFrame(out)
-    main = agg["method"].isin(MULTIVARIATE + UNIVARIATE)      # ablation arms are not ranked
-    agg["rank"] = agg[main].groupby("dataset")["size"].rank(method="min")
-    return agg
+    return pd.DataFrame(out)
 
 
-def to_latex(agg, datasets, order):
+def to_latex(agg, datasets, order, labels=LABELS):
+    agg = agg[agg["method"].isin(order)]
+    complete = agg.groupby("dataset")["method"].nunique() == len(order)
+    ranks = (agg[agg["dataset"].isin(complete[complete].index)]
+             .assign(rank=lambda t: t.groupby("dataset")["size"].rank(method="min"))
+             .groupby("method")["rank"].mean())
     lines = [r"\begin{tabular}{l c " + " ".join("c" for _ in order) + "}", r"\toprule",
-             "Dataset & $d$ & " + " & ".join(LABELS[m] for m in order) + r" \\", r"\midrule"]
+             "Dataset & $d$ & " + " & ".join(labels[m] for m in order) + r" \\", r"\midrule"]
     for ds in [k for k in datasets if k in set(agg["dataset"])]:
         g = agg[agg["dataset"] == ds].set_index("method")
         best = g["size"].idxmin()
@@ -68,7 +75,6 @@ def to_latex(agg, datasets, order):
                 size = r"\mathbf{" + size + "}"
             cells.append(f"${size}$ / ${r['coverage']:.3f} \\pm {r['coverage_sd']:.3f}$")
         lines.append(f"{datasets[ds]['name']} & {int(g['d'].iloc[0])} & " + " & ".join(cells) + r" \\")
-    ranks = agg[agg["method"].isin(order)].groupby("method")["rank"].mean()
     lines += [r"\midrule", "Mean rank & & " + " & ".join(f"{ranks.get(m, float('nan')):.2f}" for m in order) + r" \\",
               r"\bottomrule", r"\end{tabular}"]
     return "\n".join(lines)
@@ -88,6 +94,8 @@ def main():
     multi, uni = agg[agg["d"] > 1], agg[agg["d"] == 1]
     if len(multi):
         (out / "multivariate.tex").write_text(to_latex(multi, datasets, MULTIVARIATE))
+        if multi["method"].isin(EXTENDED[1:5]).any():
+            (out / "extended.tex").write_text(to_latex(multi, datasets, EXTENDED, EXTENDED_LABELS))
     if len(uni):
         (out / "univariate.tex").write_text(to_latex(uni, datasets, UNIVARIATE))
     print(agg.to_string(index=False))

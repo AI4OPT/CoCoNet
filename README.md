@@ -1,6 +1,6 @@
 <div align="center">
 
-# CoCoNet
+# CoCoNet 🥥
 
 **Learned convex prediction regions for multivariate regression, with split-conformal coverage**
 

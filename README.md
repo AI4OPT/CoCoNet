@@ -215,8 +215,10 @@ Every setting lives in `configs/experiment.yaml`; datasets are defined in `confi
 - **Tuning.** Per (dataset, seed), at the neutral weights. For the ICNN: the encoder width
   ({[64, 32], [256, 128]}). For the spline: the knots {2, 4, 6, 8}, the batch size
   {32, 64, 128} and the encoder width.
-- **ICNN test volume.** A whitened Monte Carlo estimate at 2<sup>16</sup> directions
-  (2<sup>15</sup> at d = 1), with a doubling check.
+- **ICNN test volume.** A whitened Monte Carlo estimate computed at M = 2<sup>15</sup> and
+  2M = 2<sup>16</sup> directions in one pass; the 2<sup>16</sup> estimate is reported. It counts
+  as converged when doubling changes the size by less than 0.1%. At d = 1 the region is an interval
+  and its exact length is reported.
 - **Baselines.**
   - MVCS uses its authors' hyperparameter grid (60 candidates, selected by validation
     objective), with p ≥ 1 (`mvcs`) or p = max(|p|, 0.1) (`mvcs_free`).
@@ -228,10 +230,13 @@ Every setting lives in `configs/experiment.yaml`; datasets are defined in `confi
 
 ## Datasets
 
-`n` is the number of rows in the source data, `d_x` the number of raw features, `d` the response
-dimension, and "rows used" the seeded random subsample the experiments run on (`max_rows` in
-`configs/datasets.yaml`). Loaders drop rows with a missing target where the source has any;
-missing features are median-imputed from D<sub>pred</sub>.
+`n` is the number of rows in the source data after rows with a missing target are dropped, `d_x`
+the number of input features after preprocessing (constant columns dropped, categorical
+columns one-hot encoded; seed 0), `d` the response dimension, and
+"rows used" the seeded random subsample the experiments run on (`max_rows` in
+`configs/datasets.yaml`). Missing features are median-imputed from D<sub>pred</sub>. The encoder
+is fitted on D<sub>pred</sub>, so the number of one-hot columns can change with the seed: 36 to 42
+for Online Retail II and 60 to 61 for Bike Sharing.
 
 <details>
 <summary><b>Multivariate: 30 datasets, d = 2 to 16</b></summary>
@@ -240,34 +245,34 @@ missing features are median-imputed from D<sub>pred</sub>.
 |---|---|---|---:|---:|---:|---:|
 | `argoverse2_2d` | Argoverse2-2D | Argoverse 2 motion forecasting: displacement of the focal agent 6 s ahead from summaries of its 5 s history | 24,988 | 28 | 2 | 20,000 |
 | `argoverse2_motion` | Argoverse2 Motion | same source, 3 s horizon | 24,988 | 28 | 2 | 20,000 |
-| `bias_corr_temp` | Bias-Corr. Temp. | UCI 514: next-day (Tmax, Tmin) from present-day readings and forecasts | 7,723 | 23 | 2 | all |
+| `bias_corr_temp` | Bias-Corr. Temp. | UCI 514: next-day (Tmax, Tmin) from present-day readings and forecasts | 7,723 | 46 | 2 | all |
 | `enb` | ENB | UCI Energy Efficiency (OpenML 41478): heating and cooling load | 768 | 8 | 2 | all |
 | `geographical_music` | Geographical Music | UCI 315: (latitude, longitude) of a track from 68 audio features | 1,059 | 68 | 2 | all |
 | `casp` | CASP | processed CASP arrays, two targets | 45,730 | 8 | 2 | 20,000 |
-| `online_retail_ii` | Online Retail II | UCI 502: (Quantity, Price) of an invoice line from country and date | 1,067,371 | 6 | 2 | 20,000 |
+| `online_retail_ii` | Online Retail II | UCI 502: (Quantity, Price) of an invoice line from country and date | 1,067,371 | 42 | 2 | 20,000 |
 | `qm9_2d` | QM9-2D | QM9: first 2 of 12 molecular properties (mu, alpha) | 130,831 | 22 | 2 | 20,000 |
 | `household_power` | Household Power | UCI 235: three sub-metering readings from four whole-house quantities | 2,049,280 | 4 | 3 | 20,000 |
 | `scpf` | SCPF | See Click Predict Fix (OpenML 41487): views, votes, comments of an issue report | 1,137 | 23 | 3 | all |
 | `argoverse2_4d` | Argoverse2-4D | displacements at 3 s and 6 s | 24,988 | 28 | 4 | 20,000 |
 | `qm8` | QM8 | QM8 spectra: the four RI-CC2 quantities from composition and Coulomb-matrix eigenvalues | 21,786 | 14 | 4 | 20,000 |
 | `qm9_4d` | QM9-4D | QM9: first 4 properties (+ homo, lumo) | 130,831 | 22 | 4 | 20,000 |
-| `sgemm` | SGEMM | UCI 440: four repeated run times of a GPU kernel configuration | 241,600 | 14 | 4 | 20,000 |
-| `beijing_aq_6d` | Beijing AQ-6D | UCI 501: six pollutants of one station-hour from its meteorology | 383,980 | 11 | 6 | 20,000 |
-| `communities_crime` | Communities Crime | UCI 211: six per-capita crime rates of a community | 2,215 | 124 | 6 | all |
-| `atp1d` | ATP1D | Mulan ATP1D (OpenML 41475): next-day minimum price of six flight/fare combinations from price-quote history | 337 | 411 | 6 | all |
+| `sgemm` | SGEMM | UCI 440: four repeated run times of a GPU kernel configuration | 241,600 | 18 | 4 | 20,000 |
+| `beijing_aq_6d` | Beijing AQ-6D | UCI 501: six pollutants of one station-hour from its meteorology | 383,980 | 37 | 6 | 20,000 |
+| `communities_crime` | Communities Crime | UCI 211: six per-capita crime rates of a community | 1,990 | 124 | 6 | all |
+| `atp1d` | ATP1D | Mulan ATP1D (OpenML 41475): next-day minimum price of six flight/fare combinations from price-quote history | 337 | 370 | 6 | all |
 | `qm9_6d` | QM9-6D | QM9: first 6 properties (+ r2, zpve) | 130,831 | 22 | 6 | 20,000 |
 | `sarcos` | SARCOS | SARCOS inverse dynamics: 7 joint torques from the 21-D arm state | 48,933 | 21 | 7 | 20,000 |
 | `argoverse2_8d` | Argoverse2-8D | displacements at 1.5, 3, 4.5 and 6 s | 24,988 | 28 | 8 | 20,000 |
 | `qm9_8d` | QM9-8D | QM9: first 8 properties (+ Cv, U0) | 130,831 | 22 | 8 | 20,000 |
-| `beijing_aq_12d` | Beijing AQ-12D | UCI 501: PM2.5 of all 12 stations at one hour from every station's meteorology (hours with all 12 readings) | 28,663 | 76 | 12 | 20,000 |
-| `knee_contact_force` | Knee Contact Force | Zenodo 7253458: 12 knee contact-force peaks of a walking trial | 2,786 | 9 | 12 | all |
+| `beijing_aq_12d` | Beijing AQ-12D | UCI 501: PM2.5 of all 12 stations at one hour from every station's meteorology (hours with all 12 readings) | 28,663 | 256 | 12 | 20,000 |
+| `knee_contact_force` | Knee Contact Force | Zenodo 7253458: 12 knee contact-force peaks of a walking trial | 2,786 | 12 | 12 | all |
 | `wq` | WQ | Mulan water quality (OpenML 41491): 14 species and indicator concentrations from 16 physico-chemical measurements | 1,060 | 16 | 14 | all |
 | `qm7b` | QM7b | QM7b: the 14 molecular properties from Coulomb-matrix eigenvalues and element counts | 7,211 | 29 | 14 | all |
 | `oes10` | OES10 | OES 2010: 16 occupation employment counts per metropolitan area | 403 | 298 | 16 | all |
 | `oes97` | OES97 | OES 1997 | 334 | 263 | 16 | all |
 | `bdg2_fox` | BDG2-Fox | Building Data Genome 2, site Fox: hourly electricity of 16 buildings from site weather and calendar features | 17,537 | 12 | 16 | all |
 | `bdg2_eagle` | BDG2-Eagle | same, site Eagle | 17,105 | 12 | 16 | all |
-| `bdg2_lamb` | BDG2-Lamb | same, site Lamb | 17,544 | 12 | 16 | all |
+| `bdg2_lamb` | BDG2-Lamb | same, site Lamb | 17,544 | 10 | 16 | all |
 
 The Argoverse 2 and QM9 tasks of different d are cut from one table each; the columns that are
 targets of another variant are removed from the features. QM9 properties are taken in the order
@@ -279,8 +284,8 @@ mu, alpha, homo, lumo, r2, zpve, Cv, U0 (then gap, U, H, G, unused).
 
 | Key | Label | Source | n | d_x | Rows used |
 |---|---|---|---:|---:|---:|
-| `beijing_pm25` | Beijing PM2.5 | UCI 381: hourly PM2.5 from concurrent meteorology | 41,757 | 11 | 10,000 |
-| `bike_sharing` | Bike Sharing | UCI 275: hourly rental count | 17,379 | 12 | 10,000 |
+| `beijing_pm25` | Beijing PM2.5 | UCI 381: hourly PM2.5 from concurrent meteorology | 41,757 | 14 | 10,000 |
+| `bike_sharing` | Bike Sharing | UCI 275: hourly rental count | 17,379 | 60 | 10,000 |
 | `ccpp` | CCPP | UCI 294: net power output of a combined-cycle plant | 9,568 | 4 | all |
 | `concrete` | Concrete | UCI concrete compressive strength | 1,030 | 8 | all |
 | `kin8nm` | Kin8nm | OpenML 189: forward kinematics of an 8-link arm | 8,192 | 8 | all |

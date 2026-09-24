@@ -48,7 +48,7 @@ def parse_args():
                    help="row cap in place of the dataset's (the encoder ablation uses 10000)")
     p.add_argument("--volume", default="closed_form", choices=("closed_form", "estimator"),
                    help="multivariate methods other than icnn and pbs: report the closed-form volume, or measure the "
-                        "region with the shared Monte Carlo estimator (as the tables do)")
+                        "region with the shared Monte Carlo estimator (as the reported numbers do)")
     p.add_argument("--output-dir", default=str(REPO / "results"))
     return p.parse_args()
 
@@ -120,7 +120,7 @@ def main():
             write_json(out / "row.json", row)
             failed += 1
             continue
-        row["method"] = method_dir          # an ablation arm is its own method in the tables
+        row["method"] = method_dir          # an ablation arm is recorded as its own method
         write_json(out / "row.json", row)
         if fit.history:
             pd.DataFrame(fit.history).to_csv(out / "training_history.csv", index=False)

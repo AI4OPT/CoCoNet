@@ -1,3 +1,0 @@
-stage,stages,learning_rate,batch_size,patience,encoder_hidden_dims,strong_convexity,gamma_miss,gamma_cov,lambda_miss_ref,lambda_cov_ref,lambda_miss,lambda_cov,val_coverage,val_volume,coverage_admissible,status,seconds
-lr,lr;encoder,0.002,32,80,"[64, 32]",0.001,1.0,1.0,13.568838470254736,583.6632064965241,13.568838470254736,583.6632064965241,0.9411764705882353,6.017965793609619,False,success,52.30761586083099
-encoder,encoder,0.002,32,80,"[256, 128]",0.001,1.0,1.0,9.378246075593617,761.0264994328251,9.378246075593617,761.0264994328251,0.9705882352941176,7.596538066864014,False,success,42.745607574936

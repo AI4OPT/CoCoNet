@@ -2,27 +2,13 @@
  "dataset": "concrete",
  "seed": 0,
  "method": "spline",
+ "num_knots": 2,
  "learning_rate": 0.002,
  "batch_size": 128,
- "patience": 80,
  "encoder_hidden_dims": [
   64,
   32
  ],
  "row_fingerprint": "8501bdf8a8c06eb2",
- "residual_sha": "a3266cb533a38e89",
- "max_rows": null,
- "device": "cpu",
- "device_name": "cpu",
- "n_trainings": 7,
- "tuning_gamma": [
-  1.0,
-  1.0
- ],
- "num_knots": 2,
- "stage_rules": {
-  "num_knots": "fallback_undercoverage_simpler",
-  "batch_size": "fallback_undercoverage_simpler",
-  "encoder_hidden_dims": "fallback_undercoverage_simpler"
- }
+ "residual_sha": "a3266cb533a38e89"
 }

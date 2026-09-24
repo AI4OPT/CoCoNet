@@ -4,4 +4,3 @@ results*/
 tables/
 logs/
 data/raw/*.part
-data/raw/*.csv.tmp

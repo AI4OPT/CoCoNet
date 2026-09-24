@@ -1,0 +1,14 @@
+{
+ "dataset": "argoverse2_2d",
+ "seed": 3,
+ "method": "spline",
+ "num_knots": 6,
+ "learning_rate": 0.002,
+ "batch_size": 32,
+ "encoder_hidden_dims": [
+  64,
+  32
+ ],
+ "row_fingerprint": "5924baadee7c8170",
+ "residual_sha": "7bdf8f4dce78d7a4"
+}

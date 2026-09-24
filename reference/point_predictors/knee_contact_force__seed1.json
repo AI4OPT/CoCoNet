@@ -1,0 +1,10 @@
+{
+ "dataset": "knee_contact_force",
+ "seed": 1,
+ "max_rows": null,
+ "row_fingerprint": "533500980e4c234c",
+ "residual_sha": "9a3e5b80ad4803b3",
+ "pt_sha256": "23577bbd093fcdca5e2b0ec5658efe8b87ef107bea6bd47a5a1f0bdb317eebb6",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126"
+}

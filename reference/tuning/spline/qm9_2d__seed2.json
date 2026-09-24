@@ -1,0 +1,14 @@
+{
+ "dataset": "qm9_2d",
+ "seed": 2,
+ "method": "spline",
+ "num_knots": 8,
+ "learning_rate": 0.002,
+ "batch_size": 128,
+ "encoder_hidden_dims": [
+  256,
+  128
+ ],
+ "row_fingerprint": "631144eb0d064cc4",
+ "residual_sha": "a140e5a890a9edfa"
+}

@@ -1,0 +1,14 @@
+{
+ "dataset": "qm8",
+ "seed": 1,
+ "method": "spline",
+ "num_knots": 2,
+ "learning_rate": 0.002,
+ "batch_size": 64,
+ "encoder_hidden_dims": [
+  64,
+  32
+ ],
+ "row_fingerprint": "79b53246794e5621",
+ "residual_sha": "978d205925c35426"
+}

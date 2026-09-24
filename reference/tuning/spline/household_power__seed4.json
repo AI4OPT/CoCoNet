@@ -1,0 +1,14 @@
+{
+ "dataset": "household_power",
+ "seed": 4,
+ "method": "spline",
+ "num_knots": 6,
+ "learning_rate": 0.002,
+ "batch_size": 128,
+ "encoder_hidden_dims": [
+  256,
+  128
+ ],
+ "row_fingerprint": "1ad0f0a5afe9c772",
+ "residual_sha": "3ffd1bc3bbff0d62"
+}

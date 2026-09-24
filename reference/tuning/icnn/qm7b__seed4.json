@@ -1,0 +1,14 @@
+{
+ "dataset": "qm7b",
+ "seed": 4,
+ "method": "icnn",
+ "encoder_input": "xf",
+ "learning_rate": 0.002,
+ "batch_size": 32,
+ "encoder_hidden_dims": [
+  64,
+  32
+ ],
+ "row_fingerprint": "efc244b39c6cb0cd",
+ "residual_sha": "52350aee03257fd3"
+}

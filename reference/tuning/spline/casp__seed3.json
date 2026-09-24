@@ -1,0 +1,14 @@
+{
+ "dataset": "casp",
+ "seed": 3,
+ "method": "spline",
+ "num_knots": 8,
+ "learning_rate": 0.002,
+ "batch_size": 32,
+ "encoder_hidden_dims": [
+  256,
+  128
+ ],
+ "row_fingerprint": "5924baadee7c8170",
+ "residual_sha": "b21c232bafbe52f3"
+}

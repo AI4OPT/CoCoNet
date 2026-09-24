@@ -5,8 +5,6 @@
  "row_fingerprint": "28ae4ea32ff773f7",
  "residual_sha": "e6dfd61ac531c688",
  "pt_sha256": "9ea451578acde4b6b0c1fc41f16c4e843ce8d4f4f9396800b004563c14d9da2d",
- "fit_device": "cpu",
  "torch_threads": 4,
- "torch_version": "2.7.1+cu126",
- "source_pt_sha256": "67ee9c52af570e37a847c89349e705732fffe337fc3ee0ef2795ba214b2dcc74"
+ "torch_version": "2.7.1+cu126"
 }

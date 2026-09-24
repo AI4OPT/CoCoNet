@@ -1,0 +1,14 @@
+{
+ "dataset": "communities_crime",
+ "seed": 0,
+ "method": "spline",
+ "num_knots": 2,
+ "learning_rate": 0.002,
+ "batch_size": 128,
+ "encoder_hidden_dims": [
+  64,
+  32
+ ],
+ "row_fingerprint": "eb6bcfaabc2e6169",
+ "residual_sha": "aee732d52665d0c8"
+}

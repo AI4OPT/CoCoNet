@@ -1,1 +1,1 @@
-"""CoCoNet: learned convex conformity scores for multivariate conformal prediction."""
+"""Learned convex conformity scores for multivariate conformal prediction, and the baselines."""

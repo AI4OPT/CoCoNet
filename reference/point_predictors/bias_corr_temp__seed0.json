@@ -1,0 +1,10 @@
+{
+ "dataset": "bias_corr_temp",
+ "seed": 0,
+ "max_rows": null,
+ "row_fingerprint": "8ac11ac16ab4a3b7",
+ "residual_sha": "312d7c8f88ae376b",
+ "pt_sha256": "ccfa5e0bf32b6d49c9bdc1485e6db3748dbbc5172eb97e2af68edafd3af6156b",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126"
+}

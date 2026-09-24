@@ -1,0 +1,14 @@
+{
+ "dataset": "knee_contact_force",
+ "seed": 2,
+ "method": "spline",
+ "num_knots": 6,
+ "learning_rate": 0.002,
+ "batch_size": 64,
+ "encoder_hidden_dims": [
+  64,
+  32
+ ],
+ "row_fingerprint": "c8a5213e2f9407d9",
+ "residual_sha": "391777fa40b15fb7"
+}

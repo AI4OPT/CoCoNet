@@ -72,7 +72,7 @@ class Tuner:
         return sorted({min(int(b), self.n_train) for b in grid})
 
 
-def tune_icnn(data, cfg, seed, device, encoder_input="xf"):
+def tune_icnn(data, cfg, seed, device):
     g = cfg["tuning"]["icnn"]
     t = Tuner(data, cfg, "icnn", seed, device)
     enc0 = list(cfg["icnn"]["encoder_hidden_dims"])
@@ -80,14 +80,14 @@ def tune_icnn(data, cfg, seed, device, encoder_input="xf"):
     bs0 = bs_grid[-1]
 
     def run(stage, lr, bs, enc):
-        return t.run(stage, lambda: build_icnn(data, cfg, enc, encoder_input),
+        return t.run(stage, lambda: build_icnn(data, cfg, enc),
                      learning_rate=float(lr), batch_size=int(bs), encoder_hidden_dims=list(enc))
 
     lr = choose([run("learning_rate", lr, bs0, enc0) for lr in g["learning_rate"]], t.target, t.tolerance)["learning_rate"]
     bs = choose([run("batch_size", lr, bs, enc0) for bs in bs_grid], t.target, t.tolerance)["batch_size"]
     enc = choose([run("encoder", lr, bs, e) for e in g["encoder_hidden_dims"]], t.target, t.tolerance,
                  encoder_simplicity)["encoder_hidden_dims"]
-    return {"dataset": data.dataset, "seed": seed, "method": "icnn", "encoder_input": encoder_input,
+    return {"dataset": data.dataset, "seed": seed, "method": "icnn",
             "learning_rate": lr, "batch_size": bs, "encoder_hidden_dims": enc,
             "row_fingerprint": data.row_fingerprint, "residual_sha": data.residual_sha, "candidates": t.rows}
 

@@ -3,9 +3,9 @@
     python run.py --dataset enb --method icnn
     python run.py --dataset enb --method spline --seeds 0 1
 
-Per (dataset, seed): load the saved point predictor (or fit it with --fit-point-predictor), load
-the tuned settings of icnn / spline (or tune them with --tune), train and calibrate the method,
-evaluate on the test split and write results/<dataset>/<method>/seed<S>/row.json.
+Per (dataset, seed): fit the MLP point predictor, tune icnn / spline (once; the choice is saved in
+<output-dir>/tuning and reused by later runs), train and calibrate the method, evaluate on the
+test split and write <output-dir>/<dataset>/<method>/seed<S>/row.json.
 
 icnn needs a GPU; every other method runs on the CPU with 4 threads. Set CUDA_VISIBLE_DEVICES=
 for the CPU methods so torch does not pick up a GPU.
@@ -39,15 +39,13 @@ def parse_args():
     p.add_argument("--seeds", nargs="+", type=int, default=None, help="default: the config's seeds")
     p.add_argument("--config", default=str(REPO / "configs" / "experiment.yaml"))
     p.add_argument("--datasets", default=str(REPO / "configs" / "datasets.yaml"))
-    p.add_argument("--point-predictor-dir", default=str(REPO / "reference" / "point_predictors"))
-    p.add_argument("--fit-point-predictor", action="store_true", help="fit F(x) here instead of loading it")
-    p.add_argument("--tuning-dir", default=str(REPO / "reference" / "tuning"))
-    p.add_argument("--tune", action="store_true",
-                   help="icnn / spline: tune the settings and save them to --tuning-dir when no file exists yet")
+    p.add_argument("--point-predictor-dir", default=None,
+                   help="load saved predictors (from fit_point_predictor.py) instead of fitting them")
+    p.add_argument("--tuning-dir", default=None, help="default: <output-dir>/tuning")
     p.add_argument("--encoder-input", default="xf", choices=ENCODER_INPUTS,
                    help="icnn only: what the encoder sees (xf = [x, F(x)], the default model)")
     p.add_argument("--max-rows", type=int, default=None,
-                   help="row cap in place of the dataset's (the encoder ablation uses 10000 with the files in reference/rows10000)")
+                   help="row cap in place of the dataset's (the encoder ablation uses 10000)")
     p.add_argument("--volume", default="closed_form", choices=("closed_form", "estimator"),
                    help="multivariate methods other than icnn and pbs: report the closed-form volume, or measure the "
                         "region with the shared Monte Carlo estimator (as the tables do)")
@@ -85,25 +83,25 @@ def main():
         out.mkdir(parents=True, exist_ok=True)
         print(f"=== {args.dataset} / {method_dir} / seed {seed} ===")
         data = pipeline.prepare_data(args.dataset, seed, cfg, datasets,
-                                     None if args.fit_point_predictor else Path(args.point_predictor_dir))
+                                     Path(args.point_predictor_dir) if args.point_predictor_dir else None)
         print(f"d={data.d} input_dim={data.input_dim} n_pred={data.n_pred} n_score={data.n_score} "
               f"n_cal={data.n_cal} n_test={data.n_test} residual_sha={data.residual_sha}")
 
         tuned = None
         if args.method in ("icnn", "spline"):
-            path = Path(args.tuning_dir) / args.method / f"{args.dataset}__seed{seed}.json"
-            if not path.exists() and args.tune:
-                sel = (tune_icnn(data, cfg, seed, device, args.encoder_input) if args.method == "icnn"
-                       else tune_spline(data, cfg, seed))
+            # Every encoder-ablation arm reuses the settings tuned for the default model ([x, F(x)]).
+            tuning_dir = Path(args.tuning_dir) if args.tuning_dir else Path(args.output_dir) / "tuning"
+            path = tuning_dir / args.method / f"{args.dataset}__seed{seed}.json"
+            if not path.exists():
+                print(f"tuning {args.method} ...")
+                sel = tune_icnn(data, cfg, seed, device) if args.method == "icnn" else tune_spline(data, cfg, seed)
                 path.parent.mkdir(parents=True, exist_ok=True)
                 pd.DataFrame(sel.pop("candidates")).to_csv(path.with_name(path.stem + "__candidates.csv"), index=False)
                 write_json(path, sel)
-            if not path.exists():
-                sys.exit(f"no tuned settings at {path}; pass --tune to create them")
             tuned = read_json(path)
             for key in ("row_fingerprint", "residual_sha"):
                 if tuned[key] != getattr(data, key):
-                    sys.exit(f"{path} was tuned on other data ({key} differs)")
+                    sys.exit(f"{path} was tuned on other data ({key} differs); use another --output-dir or --tuning-dir")
             print("tuned settings:", {k: tuned[k] for k in ("learning_rate", "batch_size", "encoder_hidden_dims", "num_knots")
                                        if k in tuned})
 

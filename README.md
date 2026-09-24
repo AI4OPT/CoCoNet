@@ -2,9 +2,9 @@
 
 Learned convex prediction regions for multivariate regression with split-conformal coverage,
 plus the baselines they are compared with. This repository contains the code, the raw data and
-the fitted point predictors needed to rerun every experiment: 30 multivariate datasets, 6
-univariate datasets, an extended comparison with further baselines and an encoder-input ablation,
-at 90% target coverage over seeds 0-4.
+code and raw data needed to rerun every experiment: four 2-D synthetic shapes with a known
+optimal region, 30 multivariate datasets, 6 univariate datasets, an extended comparison with
+further baselines and an encoder-input ablation, all at 90% target coverage.
 
 ![Overview](figures/overview.png)
 
@@ -44,6 +44,7 @@ The two multi-norm variants run the MVCS authors' own code; fetch it once with
 
 ```
 run.py                  one method on one dataset (all seeds) -> results/<dataset>/<method>/seed<S>/row.json
+synthetic.py            one method on one synthetic shape (all seeds) -> results_synthetic/, and its table
 fit_point_predictor.py  fit and save the MLP point predictor of a dataset
 make_table.py           results/ -> tables/ (aggregated.csv, multivariate.tex, univariate.tex)
 configs/experiment.yaml every setting of the experiments
@@ -54,10 +55,8 @@ coconet/tuning.py       per-(dataset, seed) tuning of the learned scores
 coconet/models/         icnn.py, spline.py (the two scores), mlp.py, volume_estimator.py
 coconet/training/       loss, lambda grid search, training loops, checkpoint selection
 coconet/conformal/      calibration, ellipsoids, empirical copula, MVCS (single and multi-norm), PBS
-coconet/data/           loaders, preprocessing, splits
+coconet/data/           loaders, preprocessing, splits, synthetic shapes
 data/raw/               raw dataset files (UCI / OpenML files are downloaded on first use if missing)
-reference/              fitted point predictors (.pt + .json) and tuned settings (.json) per (dataset, seed);
-                        rows10000/ holds the 10,000-row versions used by the encoder ablation
 ```
 
 ## Setup
@@ -144,33 +143,57 @@ uses (per test point, groups of 30 points, 2^15 directions, doubling until the s
 less than 0.1%). Add `--volume estimator` to do the same; it uses a GPU when one is visible. PBS
 always reports its own change-of-variables volume, and univariate intervals are exact.
 
-By default a run loads the saved point predictor and tuned settings of that (dataset, seed)
-from `reference/` and checks that this run's data split and residuals are the ones they were
-made with. To regenerate them instead:
-
-```
-python fit_point_predictor.py --dataset enb --out my_predictors
-python run.py --dataset enb --method icnn --point-predictor-dir my_predictors --tuning-dir my_tuning --tune
-```
+**End to end.** Each run fits the MLP point predictor of the (dataset, seed), and for `icnn` and
+`spline` first tunes their settings. The tuned choice is saved in `<output-dir>/tuning/` together
+with a hash of the data split and residuals, and later runs of the same (dataset, seed) reuse it.
+Tuning is the expensive step: a few extra trainings per (dataset, seed). To reuse one set of point
+predictors across runs, save them once with `python fit_point_predictor.py --dataset enb --out
+my_predictors` and pass `--point-predictor-dir my_predictors`.
 
 The encoder-input ablation runs the ICNN with `--encoder-input {xf,f,x,none,id_xf,id_x,id_f}`
 (`xf` is the default model; the `id_` arms feed the raw context without an encoder MLP; `none`
 learns one global set) on ENB, Bias-Corr. Temp., Online Retail II, SCPF, QM8, Communities Crime,
 QM9-8D, Knee Contact Force, QM7b and OES97. Every arm reuses the tuned settings of the default
-model. Datasets with more than 10,000 rows are capped at 10,000 for the ablation, with their own
-predictors and settings:
+model (run `--encoder-input xf` first; it tunes). Datasets with more than 10,000 rows are capped at
+10,000 for the ablation; give those runs their own output folder, since the split differs:
 
 ```
-python run.py --dataset qm8 --method icnn --encoder-input x --max-rows 10000 \
-    --point-predictor-dir reference/rows10000/point_predictors --tuning-dir reference/rows10000/tuning
+python run.py --dataset qm8 --method icnn --max-rows 10000 --output-dir results_rows10000
+python run.py --dataset qm8 --method icnn --encoder-input x --max-rows 10000 --output-dir results_rows10000
 ```
 
 Both scripts set `OMP_NUM_THREADS=4` unless it is already set. For the CPU methods hide any GPU
 with `CUDA_VISIBLE_DEVICES=`. A cluster job needs one node, 4 cores, 8 GB per core and, for
-`icnn`, one GPU. `icnn` was run on a Quadro RTX 6000; other GPU models give slightly different
-numbers because the checkpoint and lambda selections react to last-bit differences.
+`icnn`, one GPU. The reported numbers were produced on Intel Xeon CPUs with 4 threads and, for
+`icnn`, a Quadro RTX 6000. On the same hardware and package versions a run reproduces them; other
+CPU or GPU models change the last bits, which the tuning, lambda and checkpoint selections can
+amplify into small differences.
 
-Tables:
+### Synthetic shapes
+
+Four 2-D residual laws with a known optimal region: an ellipse, a rectangle, a triangle and a
+trapezoid (`coconet/data/synthetic.py`). The residual is uniform in a convex body B with
+probability 0.9 and uniform in the shell 1.6 B minus B otherwise, then rotated and scaled, so the
+body itself is the unique smallest region with 90% coverage; its area is V*. The input x is
+uniform on [-1, 1]^2 and every method is given the exact mean as its point prediction. Per seed
+(42-46): 2,500 training, 2,000 validation, 8,000 calibration and 1,000 test points.
+
+```
+python synthetic.py --shape triangle --method icnn                # GPU, seeds 42-46
+python synthetic.py --shape triangle --method spline --seeds 42   # CPU
+python synthetic.py --table                                       # tables/synthetic.tex
+```
+
+The methods are `absolute_residual`, `empirical_copula`, `global_ellipsoid`, `local_ellipsoid`,
+`mvcs`, `spline` and `icnn`. Each run reports test coverage, V/V* (mean region area over V*) and
+IoU: the region at an input and the true region are compared on a 500 x 500 grid, averaged over
+x = (0, 0) and 24 random inputs. The settings that differ from the real-data runs are in the
+`synthetic` block of the config: gamma_cov in {0, 0.1}, and the ICNN is not tuned (learning rate
+0.002, batch size 32, encoder [64, 32]). The spline is tuned as on real data. The reported numbers
+used 8 CPU threads for the CPU methods and, for `icnn`, an NVIDIA L40S (ellipse seeds 42, 45 and 46:
+an H200).
+
+### Tables
 
 ```
 python make_table.py      # tables/aggregated.csv, tables/multivariate.tex, tables/univariate.tex

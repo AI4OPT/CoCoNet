@@ -48,8 +48,8 @@ def encoder_simplicity(row):
 
 
 class Tuner:
-    def __init__(self, data, cfg, seed, device):
-        self.data, self.cfg, self.seed, self.device = data, cfg, seed, device
+    def __init__(self, data, cfg, method, seed, device):
+        self.data, self.cfg, self.method, self.seed, self.device = data, cfg, method, seed, device
         self.target = 1.0 - float(cfg["alpha"])
         self.tolerance = float(cfg["score_learning"]["coverage_tolerance"])
         self.n_train = len(data.x_score)
@@ -60,7 +60,7 @@ class Tuner:
         if key in self.done:
             return self.done[key]
         t0 = time.perf_counter()
-        s = train_settings(self.cfg, self.seed, self.n_train, setting["learning_rate"], setting["batch_size"])
+        s = train_settings(self.cfg, self.method, self.seed, self.n_train, setting["learning_rate"], setting["batch_size"])
         cov, size = _neutral_training(build, self.data, self.cfg, s, self.device)
         row = {"stage": stage, **setting, "val_coverage": cov, "val_size": size, "seconds": time.perf_counter() - t0}
         print(f"[{stage}] {setting} -> val_coverage={cov:.4f} val_size={size:.6g} ({row['seconds']:.0f}s)")
@@ -74,7 +74,7 @@ class Tuner:
 
 def tune_icnn(data, cfg, seed, device, encoder_input="xf"):
     g = cfg["tuning"]["icnn"]
-    t = Tuner(data, cfg, seed, device)
+    t = Tuner(data, cfg, "icnn", seed, device)
     enc0 = list(cfg["icnn"]["encoder_hidden_dims"])
     bs_grid = t.batch_grid(g["batch_size"])
     bs0 = bs_grid[-1]
@@ -94,7 +94,7 @@ def tune_icnn(data, cfg, seed, device, encoder_input="xf"):
 
 def tune_spline(data, cfg, seed):
     g = cfg["tuning"]["spline"]
-    t = Tuner(data, cfg, seed, "cpu")
+    t = Tuner(data, cfg, "spline", seed, "cpu")
     lr0, enc0 = float(g["learning_rate"][0]), list(g["encoder_hidden_dims"][0])
     bs_grid = t.batch_grid(g["batch_size"])
     bs0 = bs_grid[-1]

@@ -166,6 +166,15 @@ communities_crime:
                  assaults, burglaries, larcenies, autoTheft, autoTheftPerPop, arsons, arsonsPerPop,
                  violentPerPop, nonViolPerPop]
 
+atp1d:
+  name: "ATP1D"
+  output_dim: 6
+  max_rows: null
+  loader: openml
+  openml_id: 41475
+  target_columns: [LBL_ALLminpA_fut_001, LBL_ALLminp0_fut_001, LBL_aDLminpA_fut_001,
+                   LBL_aCOminpA_fut_001, LBL_aFLminpA_fut_001, LBL_aUAminpA_fut_001]
+
 qm9_6d:
   name: "QM9-6D"
   output_dim: 6
@@ -222,6 +231,15 @@ knee_contact_force:
   drop_columns: [SUBJECT_UID]
   categorical_columns: [SOURCE_DATASET]
 
+wq:
+  name: "WQ"
+  output_dim: 14
+  max_rows: null
+  loader: openml
+  openml_id: 41491
+  target_columns: [x25400, x29600, x30400, x33400, x17300, x19400, x34500,
+                   x38100, x49700, x50390, x55800, x57500, x59300, x37880]
+
 qm7b:
   name: "QM7b"
   output_dim: 14
@@ -262,6 +280,30 @@ oes97:
                    x27311_Recreation_Workers, x98902_Hand_Packers_and_Packagers, x65032_Cooks__Fast_Food,
                    x92998_All_Other_Machine_Operators_and_Tenders, x27108_Psychologists,
                    x53905_Teacher_Aides_and_Educational_Assistants__Clerical]
+
+bdg2_fox:
+  name: "BDG2-Fox"
+  output_dim: 16
+  max_rows: 20000
+  loader: csv
+  file: bdg2_fox.csv
+  target_columns: [kwh_assembly_Renna, kwh_assembly_Tony, kwh_education_Andre, kwh_education_Claire, kwh_education_Eddy, kwh_education_Ollie, kwh_education_Ray, kwh_education_Tonya, kwh_education_Willis, kwh_education_Yolande, kwh_lodging_Helen, kwh_office_Clayton, kwh_office_Edythe, kwh_office_Karima, kwh_office_Thelma, kwh_utility_Marian]
+
+bdg2_eagle:
+  name: "BDG2-Eagle"
+  output_dim: 16
+  max_rows: 20000
+  loader: csv
+  file: bdg2_eagle.csv
+  target_columns: [kwh_assembly_Benny, kwh_education_Brooke, kwh_education_Luther, kwh_education_Norah, kwh_education_Samantha, kwh_education_Sherrill, kwh_education_Teresa, kwh_education_Will, kwh_health_Jodi, kwh_health_Trisha, kwh_health_Vincenza, kwh_lodging_Andy, kwh_office_Donovan, kwh_office_Henriette, kwh_office_Randolph, kwh_public_Preston]
+
+bdg2_lamb:
+  name: "BDG2-Lamb"
+  output_dim: 16
+  max_rows: 20000
+  loader: csv
+  file: bdg2_lamb.csv
+  target_columns: [kwh_assembly_Cherie, kwh_assembly_Dorothy, kwh_assembly_Elinor, kwh_assembly_Katelyn, kwh_assembly_Librada, kwh_assembly_Rosa, kwh_education_Armando, kwh_education_Lazaro, kwh_education_Lucas, kwh_education_Mae, kwh_education_Sara, kwh_health_Ken, kwh_industrial_Carla, kwh_industrial_Enrique, kwh_office_Bertha, kwh_office_Caitlin]
 
 # -------------------------------------------------------------------- univariate
 beijing_pm25:

@@ -24,13 +24,12 @@ point_predictor:
 
 # Both learned scores: (mean V)^(1/d) + lambda_miss * miss + lambda_cov * coverage penalty,
 # threshold tau fixed, Adam with gradient clipping, checkpoint chosen every few epochs by
-# calibrated validation coverage and size.
+# calibrated validation coverage and size. The epoch cap is per method (icnn / spline below).
 score_learning:
   tau: 1.0
   kappa_cov: 10.0                        # sigmoid sharpness of the coverage penalty
   gamma_miss: [0.01, 0.03, 1, 10]        # lambda_miss = gamma_miss * lambda_miss_ref
   gamma_cov: [0, 0.1, 1]                 # lambda_cov  = gamma_cov  * lambda_cov_ref
-  max_epochs: 400
   patience: 80
   grad_clip_norm: 5.0
   coverage_tolerance: 0.02
@@ -51,6 +50,7 @@ tuning:
     encoder_hidden_dims: [[64, 32], [256, 128]]
 
 icnn:
+  max_epochs: 400
   encoder_hidden_dims: [64, 32]          # starting point of the tuner
   hidden_dim: 64                         # convex body: depth layers of this width
   depth: 2
@@ -82,13 +82,16 @@ icnn:
     convergence_tolerance: 0.001                # |V(2M)^(1/d) / V(M)^(1/d) - 1| below this = converged
 
 spline:
+  max_epochs: 300
   minimum_slope: 1.0e-4
 
-# MVCS with p >= 1 (convex) around F(x) (the inputs are already residuals), with the authors'
-# hyperparameter grid (60 candidates, selected by validation objective).
+# MVCS around F(x) (the inputs are already residuals), with the authors' hyperparameter grid (60
+# candidates, selected by validation objective). `mvcs` keeps p >= 1 (convex); `mvcs_free` uses
+# p = max(|p|, p_min).
 mvcs:
   ridge: 1.0e-6
   p_init: 2.0
+  p_min: 0.1
   max_epochs: 4000
   patience: 500
   grad_clip_norm: 5.0
@@ -118,3 +121,27 @@ empirical_copula:
 
 locally_weighted:                        # univariate only
   rho_floor: 0.001
+
+# PBS (AC-NQR_U): each configuration (width, depth, batch size) is trained; selection by the
+# validation coverage error of the plug-in sets. Volume by change of variables at the largest budget.
+pbs:
+  configurations: [[10, 1, 2048], [12, 4, 512], [16, 4, 512], [46, 4, 8192], [18, 8, 256]]
+  learning_rate: 0.01                    # potential and amortizer
+  weight_decay: 1.0e-4
+  grad_clip: 1.0
+  max_epochs: 800
+  amortizer_restart_epochs: 10
+  newton_tol: 1.0e-5
+  newton_max_iter: 60
+  n_val_u: 32                            # reference draws per validation input
+  alpha_init: 1.0                        # initial strong-convexity weight
+  volume_budgets: [32768, 65536]         # the last one is reported
+
+# Shared Monte Carlo volume estimator for the regions of every method but the ICNN and PBS
+# (run.py --volume estimator). Same estimator as the ICNN's test volume; groups of 30 test points.
+volume_estimator:
+  reported_budget: 32768
+  max_budget: 2097152                    # doubling stops here if the tolerance is never met
+  tolerance_pct: 0.1                     # |(V(2M)/V(M))^(1/d) - 1| in percent
+  rounds: 24
+  refine_directions: 2048

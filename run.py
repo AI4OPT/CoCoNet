@@ -46,6 +46,11 @@ def parse_args():
                    help="icnn / spline: tune the settings and save them to --tuning-dir when no file exists yet")
     p.add_argument("--encoder-input", default="xf", choices=ENCODER_INPUTS,
                    help="icnn only: what the encoder sees (xf = [x, F(x)], the default model)")
+    p.add_argument("--max-rows", type=int, default=None,
+                   help="row cap in place of the dataset's (the encoder ablation uses 10000 with the files in reference/rows10000)")
+    p.add_argument("--volume", default="closed_form", choices=("closed_form", "estimator"),
+                   help="multivariate methods other than icnn and pbs: report the closed-form volume, or measure the "
+                        "region with the shared Monte Carlo estimator (as the tables do)")
     p.add_argument("--output-dir", default=str(REPO / "results"))
     return p.parse_args()
 
@@ -56,6 +61,8 @@ def main():
     datasets = load_yaml(args.datasets)
     if args.dataset not in datasets:
         sys.exit(f"unknown dataset {args.dataset!r}; see configs/datasets.yaml")
+    if args.max_rows is not None:
+        datasets[args.dataset]["max_rows"] = args.max_rows
     d = int(datasets[args.dataset]["output_dim"])
     if args.method not in pipeline.methods_for(d):
         sys.exit(f"{args.method} does not apply at d={d}; choose from {pipeline.methods_for(d)}")
@@ -67,7 +74,7 @@ def main():
             sys.exit("icnn needs a GPU but torch sees none")
         device = "cuda"
         print("device:", torch.cuda.get_device_name(0))
-    elif torch.cuda.is_available():
+    elif torch.cuda.is_available() and args.volume != "estimator":
         print(f"warning: a GPU is visible but {args.method} runs on the CPU; hide it with CUDA_VISIBLE_DEVICES=")
     print("torch threads:", torch.get_num_threads())
 
@@ -103,6 +110,11 @@ def main():
         try:
             fit = pipeline.run_method(args.method, data, cfg, tuned, device, args.encoder_input)
             row = pipeline.evaluate(fit, data, float(cfg["alpha"]))
+            if args.volume == "estimator" and fit.gauge is not None and data.d > 1:
+                vdev = "cuda" if torch.cuda.is_available() else "cpu"
+                print("volume estimator on", torch.cuda.get_device_name(0) if vdev == "cuda" else "cpu")
+                est = pipeline.estimator_volume(fit, data, cfg, vdev)
+                row.update({"volume_closed_form": row["volume"], "size_closed_form": row["size"], **est})
         except Exception as exc:
             print(f"FAILED: {exc!r}")
             row = {"dataset": args.dataset, "seed": seed, "method": method_dir, "d": data.d,

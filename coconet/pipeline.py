@@ -18,14 +18,16 @@ import torch
 
 from coconet.conformal.calibration import conformal_threshold
 from coconet.conformal.ellipsoid import GlobalEllipsoid, LocalEllipsoid
+from coconet.conformal import pbs
 from coconet.conformal.empirical_copula import EmpiricalCopula
+from coconet.conformal.mvcs_multi import MultiNormMvcs
 from coconet.data.loaders import load_dataset
 from coconet.data.preprocessing import Preprocessor
 from coconet.data.splits import four_way_split, train_val_split
 from coconet.models.icnn import ENCODER_INPUTS, ICNN
 from coconet.models.mlp import MLP
 from coconet.models.spline import SplineScore, compute_knots
-from coconet.models.volume_estimator import log_volume_converged
+from coconet.models.volume_estimator import Gauge, estimate_log_volumes, log_volume_converged, pick_budget
 from coconet.training.lambda_search import search_lambdas
 from coconet.training.train_mvcs import MvcsConfig, train_mvcs
 from coconet.training.train_point import PointTrainConfig, train_mlp
@@ -38,11 +40,13 @@ RAW_DIR = REPO / "data" / "raw"
 MULTIVARIATE_METHODS = ("absolute_residual", "empirical_copula", "global_ellipsoid", "local_ellipsoid",
                         "mvcs", "spline", "icnn")
 UNIVARIATE_METHODS = ("absolute_residual", "locally_weighted", "mvcs", "spline", "icnn")
-ALL_METHODS = MULTIVARIATE_METHODS + ("locally_weighted",)
+# further baselines of the extended multivariate comparison
+EXTRA_METHODS = ("mvcs_free", "mvcs_multi", "mvcs_multi_free", "pbs")
+ALL_METHODS = MULTIVARIATE_METHODS + EXTRA_METHODS + ("locally_weighted",)
 
 
 def methods_for(output_dim):
-    return UNIVARIATE_METHODS if output_dim == 1 else MULTIVARIATE_METHODS
+    return UNIVARIATE_METHODS if output_dim == 1 else MULTIVARIATE_METHODS + EXTRA_METHODS
 
 
 # ------------------------------------------------------------------------------------------
@@ -170,10 +174,23 @@ class Fitted:
     selected_epoch: int = -1
     extra: dict = field(default_factory=dict)
     history: list = field(default_factory=list)
+    gauge: callable = None      # device -> (score(rows, r), rows, tau): the region for the shared volume estimator
 
 
 def _t(a):
     return torch.as_tensor(a, dtype=torch.float32)
+
+
+def _row_indices(n, device):
+    return torch.arange(n, dtype=torch.float32, device=device).unsqueeze(1)
+
+
+def box_gauge(half_widths):
+    """max_j |r_j| / h_j(x) for an axis-aligned box of half-widths h (rows = test-row indices)."""
+    def make(device):
+        h = torch.as_tensor(half_widths, dtype=torch.float32, device=device)
+        return (lambda rows, r: (r.abs() / h[rows[:, 0].long()]).max(dim=1).values), _row_indices(len(h), device), 1.0
+    return make
 
 
 def run_absolute_residual(data, alpha):
@@ -183,7 +200,8 @@ def run_absolute_residual(data, alpha):
     return Fitted("absolute_residual", q, None,
                   volume=lambda x: np.full(len(x), math.exp(d * math.log(2.0 * q))),
                   contains=lambda x, r: np.all(np.abs(r) <= q, axis=1),
-                  train_seconds=time.time() - t0, n_params=0)
+                  train_seconds=time.time() - t0, n_params=0,
+                  gauge=box_gauge(np.full((len(data.x_test), d), float(q))))
 
 
 def run_locally_weighted(data, cfg, alpha):
@@ -223,7 +241,8 @@ def run_empirical_copula(data, cfg, alpha):
     model.calibrate(data.x_cal, data.r_cal, alpha)
     return Fitted("empirical_copula", float(model.u), model, volume=model.volume, contains=model.contains,
                   train_seconds=train_seconds, n_params=model.n_params(),
-                  extra={"copula_u": model.u, "copula_q": model.q.tolist()})
+                  extra={"copula_u": model.u, "copula_q": model.q.tolist()},
+                  gauge=box_gauge(model.half_widths(data.x_test)))
 
 
 def run_ellipsoid(method, data, cfg, alpha):
@@ -236,15 +255,25 @@ def run_ellipsoid(method, data, cfg, alpha):
     model.fit(data.x_score, data.r_score)
     train_seconds = time.time() - t0
     q = conformal_threshold(model.score(data.x_cal, data.r_cal), alpha)
+
+    def gauge(device):
+        """||L(x)^-1 r|| with the ellipsoid's own Cholesky factor L (rows = test-row indices)."""
+        chol = model.chol if method == "global_ellipsoid" else model._chol(data.x_test)
+        if chol.ndim == 2:
+            chol = np.repeat(chol[None], len(data.x_test), axis=0)
+        inv = torch.as_tensor(np.linalg.inv(chol), dtype=torch.float32, device=device)
+        return (lambda rows, r: torch.einsum("nij,nj->ni", inv[rows[:, 0].long()], r).norm(dim=1)), \
+            _row_indices(len(inv), device), q
+
     return Fitted(method, q, model, volume=lambda x: model.volume(x, q),
                   contains=lambda x, r: model.score(x, r) <= q,
                   train_seconds=train_seconds, n_params=model.n_params(),
-                  extra={"num_neighbors": model.k} if method == "local_ellipsoid" else {})
+                  extra={"num_neighbors": model.k} if method == "local_ellipsoid" else {}, gauge=gauge)
 
 
-def run_mvcs(data, cfg, alpha, seed):
+def run_mvcs(data, cfg, alpha, seed, convex=True):
     """Every grid candidate is trained on D_score and scored by its validation objective; the
-    best one is the reported model."""
+    best one is the reported model. convex=False is the free-exponent variant."""
     m = cfg["mvcs"]
     g = m["grid"]
     n = max(len(data.x_score), 1)
@@ -258,7 +287,7 @@ def run_mvcs(data, cfg, alpha, seed):
                        p_init=m["p_init"], matrix_learning_rate=float(mlr), p_learning_rate=float(plr),
                        batch_size=int(min(bs, n)), max_epochs=m["max_epochs"], patience=m["patience"],
                        grad_clip_norm=m["grad_clip_norm"], nonfinite_batch_tolerance=m["nonfinite_batch_tolerance"],
-                       seed=seed)
+                       seed=seed, convex=convex, p_min=m["p_min"])
         try:
             score, epoch, objective, history = train_mvcs(data.x_score, data.r_score, data.x_val, data.r_val, c)
         except Exception as exc:
@@ -272,20 +301,82 @@ def run_mvcs(data, cfg, alpha, seed):
     objective, cand, score, epoch, history = best
     print(f"mvcs selected {cand} (validation objective {objective:.6g})")
     q = conformal_threshold(score.score(data.x_cal, data.r_cal), alpha)
-    return Fitted("mvcs", q, score, volume=lambda x: score.volume(x, q), contains=lambda x, r: score.contains(x, r, q),
+
+    def gauge(device):
+        net = score.model.to(device)
+        return (lambda xt, rt: net.scores(xt, rt)), _t(data.x_test).to(device), q
+
+    return Fitted("mvcs" if convex else "mvcs_free", q, score, volume=lambda x: score.volume(x, q),
+                  contains=lambda x, r: score.contains(x, r, q),
                   train_seconds=time.time() - t0, n_params=score.n_params(), selected_epoch=epoch,
                   extra={"learned_p": score.p, "tuned": cand, "validation_objective": objective,
                          "tuning_candidates": candidates},
-                  history=history)
+                  history=history, gauge=gauge)
+
+
+def run_mvcs_multi(data, cfg, alpha, seed, convex):
+    """Multi-norm MVCS with the authors' code: one global set centred at F(x) + mu."""
+    t0 = time.time()
+    model = MultiNormMvcs(convex).fit(data.r_score, alpha, seed)
+    train_seconds = time.time() - t0
+    q = conformal_threshold(model.scores(data.r_cal), alpha)
+    v = model.volume(q, data.d)                       # the same for every x
+    score = model.gauge(data.d)
+
+    def gauge(device):
+        return (lambda xt, rt: score(rt)), _t(data.x_test).to(device), q
+
+    return Fitted("mvcs_multi" if convex else "mvcs_multi_free", q, model,
+                  volume=lambda x: np.full(len(x), v),
+                  contains=lambda x, r: model.scores(np.asarray(r, float)) <= q,
+                  train_seconds=train_seconds, n_params=0,
+                  extra={"exponents": model.exponents(), "centre": model.centre()},
+                  gauge=gauge)
+
+
+def run_pbs(data, cfg, alpha, seed):
+    """PBS: every configuration of the grid is trained on D_score; the kept one has the smallest
+    validation coverage error (ties: validation objective). Volume by change of variables."""
+    c = cfg["pbs"]
+    t0 = time.time()
+    candidates, models = [], []
+    for width, depth, batch in c["configurations"]:
+        pc = pbs.PbsConfig(width=int(width), depth=int(depth), batch_size=int(batch), lr=float(c["learning_rate"]),
+                           amort_lr=float(c["learning_rate"]), weight_decay=float(c["weight_decay"]),
+                           grad_clip=float(c["grad_clip"]), amort_restart_epochs=int(c["amortizer_restart_epochs"]),
+                           max_epochs=int(c["max_epochs"]), newton_tol=float(c["newton_tol"]),
+                           newton_max_iter=int(c["newton_max_iter"]), n_val_u=int(c["n_val_u"]),
+                           alpha_init=float(c["alpha_init"]), seed=seed)
+        model, info = pbs.train(data.x_score, data.r_score, data.x_val, data.r_val, pc)
+        print(f"pbs width={width} depth={depth} batch={batch}: val coverage error {info['val_coverage_error']:.4f} "
+              f"val objective {info['val_loss']:+.5f}")
+        candidates.append({"width": int(width), "depth": int(depth), "batch_size": int(batch),
+                           "val_coverage_error": info["val_coverage_error"], "val_loss": info["val_loss"],
+                           "steps": info["steps"], "alpha": info["alpha"]})
+        models.append(model)
+    order = sorted(range(len(candidates)), key=lambda i: (candidates[i]["val_coverage_error"], candidates[i]["val_loss"]))
+    model, chosen = models[order[0]], candidates[order[0]]
+    train_seconds = time.time() - t0
+    q = conformal_threshold(pbs.scores(model, data.x_cal, data.r_cal), alpha)
+    budgets = [int(b) for b in c["volume_budgets"]]
+
+    def volume(x):
+        lv = pbs.log_volume(model, x, q, budgets)
+        volume.doubling = {b: float(np.mean(np.exp(lv[b].numpy()))) for b in budgets}
+        return np.exp(lv[max(budgets)].numpy())
+
+    return Fitted("pbs", q, model, volume=volume, contains=lambda x, r: pbs.scores(model, x, r) <= q,
+                  train_seconds=train_seconds, n_params=sum(p.numel() for p in model.phi.parameters()),
+                  extra={"selected": chosen, "tuning_candidates": candidates})
 
 
 # ------------------------------------------------------------------------------------------
 # learned scores
 # ------------------------------------------------------------------------------------------
-def train_settings(cfg, seed, n_train, learning_rate, batch_size):
+def train_settings(cfg, method, seed, n_train, learning_rate, batch_size):
     s = cfg["score_learning"]
     return TrainSettings(learning_rate=float(learning_rate), batch_size=min(int(batch_size), max(n_train, 1)),
-                         max_epochs=int(s["max_epochs"]), patience=int(s["patience"]),
+                         max_epochs=int(cfg[method]["max_epochs"]), patience=int(s["patience"]),
                          grad_clip_norm=float(s["grad_clip_norm"]), coverage_tolerance=float(s["coverage_tolerance"]),
                          checkpoint_every=int(s["checkpoint_every"]), min_selection_epoch=int(s["min_selection_epoch"]),
                          tau=float(s["tau"]), kappa_cov=float(s["kappa_cov"]), seed=seed)
@@ -330,7 +421,7 @@ def fit_learned_score(build, data, cfg, settings, device):
 
 
 def run_spline(data, cfg, alpha, seed, tuned):
-    settings = train_settings(cfg, seed, len(data.x_score), tuned["learning_rate"], tuned["batch_size"])
+    settings = train_settings(cfg, "spline", seed, len(data.x_score), tuned["learning_rate"], tuned["batch_size"])
     t0 = time.time()
     res, q, extra = fit_learned_score(lambda: build_spline(data, cfg, tuned["encoder_hidden_dims"], tuned["num_knots"]),
                                       data, cfg, settings, "cpu")
@@ -344,9 +435,13 @@ def run_spline(data, cfg, alpha, seed, tuned):
         with torch.no_grad():
             return model.score(_t(x), _t(r)).numpy().reshape(-1) <= q
 
+    def gauge(device):
+        model.to(device)
+        return (lambda xt, rt: model.score(xt, rt)), _t(data.x_test).to(device), q
+
     return Fitted("spline", q, model, volume, contains, time.time() - t0,
                   sum(p.numel() for p in model.parameters()), res.selected_epoch,
-                  extra={"tuned": tuned, **extra}, history=res.history)
+                  extra={"tuned": tuned, **extra}, history=res.history, gauge=gauge)
 
 
 class IcnnTestVolume:
@@ -392,7 +487,7 @@ class IcnnTestVolume:
 
 
 def run_icnn(data, cfg, alpha, seed, tuned, device, encoder_input="xf"):
-    settings = train_settings(cfg, seed, len(data.x_score), tuned["learning_rate"], tuned["batch_size"])
+    settings = train_settings(cfg, "icnn", seed, len(data.x_score), tuned["learning_rate"], tuned["batch_size"])
     t0 = time.time()
     res, q, extra = fit_learned_score(lambda: build_icnn(data, cfg, tuned["encoder_hidden_dims"], encoder_input),
                                       data, cfg, settings, device)
@@ -421,8 +516,12 @@ def run_method(method, data, cfg, tuned=None, device="cpu", encoder_input="xf"):
         return run_empirical_copula(data, cfg, alpha)
     if method in ("global_ellipsoid", "local_ellipsoid"):
         return run_ellipsoid(method, data, cfg, alpha)
-    if method == "mvcs":
-        return run_mvcs(data, cfg, alpha, data.seed)
+    if method in ("mvcs", "mvcs_free"):
+        return run_mvcs(data, cfg, alpha, data.seed, convex=(method == "mvcs"))
+    if method in ("mvcs_multi", "mvcs_multi_free"):
+        return run_mvcs_multi(data, cfg, alpha, data.seed, convex=(method == "mvcs_multi"))
+    if method == "pbs":
+        return run_pbs(data, cfg, alpha, data.seed)
     if method == "spline":
         return run_spline(data, cfg, alpha, data.seed, tuned)
     if method == "icnn":
@@ -450,5 +549,31 @@ def evaluate(fit, data, alpha):
            "max_rows": data.max_rows, "row_fingerprint": data.row_fingerprint, "residual_sha": data.residual_sha,
            "point_predictor_file": data.point_predictor_file}
     row.update(getattr(fit.volume, "certificate", {}))     # the ICNN doubling check
+    if hasattr(fit.volume, "doubling"):                    # PBS: mean volume at each budget
+        row["volume_by_budget_standardized"] = fit.volume.doubling
     row.update({k: v for k, v in fit.extra.items() if k not in ("lambda_candidates", "tuning_candidates")})
     return row
+
+
+def estimator_volume(fit, data, cfg, device):
+    """The region's volume measured with the shared Monte Carlo estimator instead of its closed
+    form. Budgets start at 2^14 and 2^15 and double until the rule in pick_budget is met."""
+    e = cfg["volume_estimator"]
+    score, rows, tau = fit.gauge(device)
+    gauge = Gauge(score, data.d, cfg["icnn"]["set_boundary"])
+    reported, largest = int(e["reported_budget"]), int(e["max_budget"])
+    top = reported
+    while True:
+        budgets = [b for b in (2 ** k for k in range(14, 40)) if b <= top]
+        with torch.no_grad():
+            lv = estimate_log_volumes(gauge, rows, tau, budgets, rounds=int(e["rounds"]),
+                                      refine_dirs=int(e["refine_directions"]))
+        mean_v = {b: float(np.mean(np.exp(lv[b]))) for b in budgets}
+        budget, converged = pick_budget(mean_v, data.d, reported, float(e["tolerance_pct"]))
+        if converged or top >= largest:
+            break
+        top *= 4 if top == reported else 2
+    jac = float(np.exp(np.sum(np.log(data.target_std))))
+    return {"volume": mean_v[budget] * jac, "size": (mean_v[budget] * jac) ** (1.0 / data.d),
+            "volume_budget": budget, "volume_converged": converged,
+            "volume_by_budget_standardized": mean_v}

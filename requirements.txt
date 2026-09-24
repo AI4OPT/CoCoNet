@@ -7,3 +7,5 @@ PyYAML>=6.0
 requests>=2.28
 openpyxl>=3.1
 xlrd>=2.0
+cvxpy>=1.4
+matplotlib>=3.7

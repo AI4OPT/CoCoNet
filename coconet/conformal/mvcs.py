@@ -1,8 +1,10 @@
-"""Minimum-volume covering set (MVCS) baseline, convex version: a p-norm ball around F(x),
+"""Minimum-volume covering set (MVCS) baseline: a p-norm ball around F(x),
 
     C(x; q) = { y : || Lambda(x) (y - F(x)) ||_p <= q },    Lambda(x) = A(x) A(x)^T + ridge I,
 
-with A(x) an MLP and one learned p, projected onto p >= 1 after every step so the set is convex.
+with A(x) an MLP and one learned exponent p. Convex version (`mvcs`): p is projected onto p >= 1
+after every step, so the set is convex. Free version (`mvcs_free`): p = max(|p_raw|, p_min), so
+p < 1 (a non-convex, star-shaped set) is allowed.
 Training minimises, per batch of B residuals,
 
     log sum_i det Lambda(x_i)^-1  +  d log s_(j)  +  log V_{d,p},     j = ceil((1 - alpha) B),
@@ -44,11 +46,13 @@ def _mlp(in_dim, out_dim, hidden_dim, n_layers):
 
 
 class MvcsModel(nn.Module):
-    def __init__(self, context_dim, output_dim, hidden_dim, n_layers, ridge, p_init):
+    def __init__(self, context_dim, output_dim, hidden_dim, n_layers, ridge, p_init, convex=True, p_min=0.1):
         super().__init__()
         self.context_dim = int(context_dim)
         self.output_dim = int(output_dim)
         self.ridge = float(ridge)
+        self.convex = bool(convex)
+        self.p_min = float(p_min)
         self.matrix_net = _mlp(context_dim, output_dim * output_dim, hidden_dim, n_layers)
         head = self.matrix_net[-1]              # Lambda(x) = I at initialisation
         nn.init.zeros_(head.weight)
@@ -62,7 +66,13 @@ class MvcsModel(nn.Module):
         self.x_mean.copy_(torch.as_tensor(x.mean(axis=0, keepdims=True), dtype=self.x_mean.dtype))
         self.x_std.copy_(torch.as_tensor(np.maximum(x.std(axis=0, keepdims=True), 1e-8), dtype=self.x_std.dtype))
 
+    def exponent(self):
+        """The norm exponent: the parameter itself (convex, kept >= 1 by project_p) or max(|p|, p_min)."""
+        return self.p if self.convex else torch.clamp_min(self.p.abs(), self.p_min)
+
     def project_p(self):
+        if not self.convex:
+            return
         with torch.no_grad():
             if float(self.p.item()) < 1.0:
                 self.p.clamp_(min=1.0)
@@ -73,7 +83,7 @@ class MvcsModel(nn.Module):
         return a @ a.transpose(-1, -2) + self.ridge * eye
 
     def scores(self, xt, residual):
-        return p_norm(torch.einsum("nij,nj->ni", self.lambda_matrix(xt), residual), self.p)
+        return p_norm(torch.einsum("nij,nj->ni", self.lambda_matrix(xt), residual), self.exponent())
 
     def loss(self, xt, residual, alpha):
         """The batch objective; -inf log-determinants (non-finite A) make it non-finite."""
@@ -82,12 +92,12 @@ class MvcsModel(nn.Module):
         if not bool(torch.all(sign > 0)):
             logdet = torch.full_like(logdet, float("-inf"))
         # Lambda(x) is computed a second time for the scores: two graph branches, as trained.
-        s = p_norm(torch.einsum("nij,nj->ni", self.lambda_matrix(xt), residual), self.p)
+        s = p_norm(torch.einsum("nij,nj->ni", self.lambda_matrix(xt), residual), self.exponent())
         b = int(s.shape[0])
         j = int(min(max(math.ceil((1.0 - alpha) * b), 1), b))
         threshold = torch.kthvalue(s, j).values
         return (torch.logsumexp(-logdet, dim=0) + k * torch.log(threshold.clamp_min(EPS))
-                + unit_ball_log_volume(self.p, k))
+                + unit_ball_log_volume(self.exponent(), k))
 
 
 class MvcsScore:
@@ -102,7 +112,7 @@ class MvcsScore:
 
     @property
     def p(self):
-        return float(self.model.p.detach())
+        return float(self.model.exponent().detach())
 
     def score(self, x, r):
         with torch.no_grad():

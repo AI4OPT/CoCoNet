@@ -10,6 +10,7 @@ the doubling check |V(2M)^(1/d) / V(M)^(1/d) - 1| cost a single pass.
 
 import math
 
+import numpy as np
 import torch
 
 
@@ -104,3 +105,58 @@ def log_volume_nested(model, x, tau, budgets, sigma, block=1 << 13):
 def log_volume_converged(model, x, tau, budgets, point_seeds, rounds=24, refine_dirs=2048):
     sig = refine_sigma(model, x, tau, point_seeds, rounds=rounds, dirs=refine_dirs)
     return log_volume_nested(model, x, tau, budgets, sig)
+
+
+# ------------------------------------------------------------------------------------------------
+# The same estimator for any region given by a gauge function (used for every method but the ICNN,
+# whose test volume above is part of its own evaluation).
+# ------------------------------------------------------------------------------------------------
+GROUP = 30          # test points per estimator call, in test-row order
+
+
+class Gauge:
+    """A region {r : score(x, r) <= tau} seen through the ICNN's ray solver. `score(x_rows, r)`
+    returns one value per row; x_rows are whatever `rows` holds (inputs or test-row indices)."""
+
+    def __init__(self, score, d, set_boundary):
+        from coconet.models.icnn import ICNN
+        self._solve_rays = ICNN._solve_rays.__get__(self)
+        self._newton_step = ICNN._newton_step.__get__(self)
+        self.score, self.residual_dim, self.eval_qmc_seed = score, int(d), 0
+        sb = set_boundary
+        self.ray_initial_radius = float(sb["initial_radius"])
+        self.ray_growth = float(sb["bracket_growth"])
+        self.ray_max_radius = float(sb["max_radius"])
+        self.ray_tolerance = float(sb["tolerance"])
+        self.ray_bisection_steps = int(sb["bisection_steps"])
+
+    def _tangent(self, x_rows):
+        return None, x_rows, None
+
+    def _score_core(self, r, h, G0, x_rows):
+        return self.score(x_rows, r).reshape(-1, 1)
+
+
+def estimate_log_volumes(gauge, rows, tau, budgets, rounds=24, refine_dirs=2048):
+    """Per-point log volume at every budget: {budget: array (n,)} in standardized units."""
+    n = len(rows)
+    out = {b: [] for b in budgets}
+    for i in range(0, n, GROUP):
+        idx = list(range(i, min(i + GROUP, n)))
+        lv = log_volume_converged(gauge, rows[i:i + len(idx)], tau, budgets, point_seeds=idx,
+                                  rounds=rounds, refine_dirs=refine_dirs)
+        for b in budgets:
+            out[b].append(lv[b].reshape(-1).cpu().numpy())
+    return {b: np.concatenate(v) for b, v in out.items()}
+
+
+def pick_budget(mean_v, d, reported=1 << 15, tolerance_pct=0.1):
+    """The reported budget if its doubling changed (mean V)^(1/d) by less than the tolerance, else the
+    first later doubling that did. Returns (budget, converged)."""
+    change = lambda b: abs((mean_v[b] / mean_v[b // 2]) ** (1.0 / d) - 1.0) * 100
+    if reported in mean_v and reported // 2 in mean_v and change(reported) < tolerance_pct:
+        return reported, True
+    for b in sorted(mean_v):
+        if b > reported and b // 2 in mean_v and change(b) < tolerance_pct:
+            return b, True
+    return max(mean_v), False

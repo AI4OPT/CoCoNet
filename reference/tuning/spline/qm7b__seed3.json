@@ -1,0 +1,14 @@
+{
+ "dataset": "qm7b",
+ "seed": 3,
+ "method": "spline",
+ "num_knots": 4,
+ "learning_rate": 0.002,
+ "batch_size": 128,
+ "encoder_hidden_dims": [
+  64,
+  32
+ ],
+ "row_fingerprint": "1519662df9a2d60d",
+ "residual_sha": "eb5110519988b417"
+}

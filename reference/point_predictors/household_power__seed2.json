@@ -1,0 +1,10 @@
+{
+ "dataset": "household_power",
+ "seed": 2,
+ "max_rows": 20000,
+ "row_fingerprint": "631144eb0d064cc4",
+ "residual_sha": "78c1e3e164cb77ec",
+ "pt_sha256": "2a77e7821f21ebadaf5f36882dcb19f6be31e77764b275b8795abcca11901f1c",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126"
+}

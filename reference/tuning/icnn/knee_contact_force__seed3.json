@@ -1,0 +1,14 @@
+{
+ "dataset": "knee_contact_force",
+ "seed": 3,
+ "method": "icnn",
+ "encoder_input": "xf",
+ "learning_rate": 0.002,
+ "batch_size": 32,
+ "encoder_hidden_dims": [
+  64,
+  32
+ ],
+ "row_fingerprint": "c7dff8cf09288722",
+ "residual_sha": "88f1e93eb26a5858"
+}

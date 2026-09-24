@@ -1,0 +1,10 @@
+{
+ "dataset": "communities_crime",
+ "seed": 4,
+ "max_rows": null,
+ "row_fingerprint": "60c6c2f8bf56a97e",
+ "residual_sha": "8bded1420c107265",
+ "pt_sha256": "1891e30617a8f0f78ed520f7554a0a10d0eb2007ef5f31a315ddc677e6738446",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126"
+}

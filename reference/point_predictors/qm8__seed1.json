@@ -1,0 +1,10 @@
+{
+ "dataset": "qm8",
+ "seed": 1,
+ "max_rows": 20000,
+ "row_fingerprint": "79b53246794e5621",
+ "residual_sha": "978d205925c35426",
+ "pt_sha256": "dd33cb7b9acd335717567df08c50c502fc17299c861a6a0bacd4035eba44ff4a",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126"
+}

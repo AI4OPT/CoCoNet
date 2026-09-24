@@ -2,24 +2,13 @@
  "dataset": "concrete",
  "seed": 1,
  "method": "icnn",
+ "encoder_input": "xf",
  "learning_rate": 0.002,
  "batch_size": 32,
- "patience": 80,
  "encoder_hidden_dims": [
   256,
   128
  ],
  "row_fingerprint": "5d531e4a6c87d610",
- "residual_sha": "e8035d2c0876f6bb",
- "max_rows": null,
- "device": "cuda",
- "device_name": "Quadro RTX 6000",
- "n_trainings": 2,
- "tuning_gamma": [
-  1.0,
-  1.0
- ],
- "strong_convexity": 0.001,
- "encoder_selected_by": "fallback_undercoverage_simpler_encoder",
- "encoder_input": "xf"
+ "residual_sha": "e8035d2c0876f6bb"
 }

@@ -1,0 +1,120 @@
+# Every setting of the experiments. Changing any value changes the numbers.
+
+alpha: 0.10                     # target coverage 1 - alpha
+seeds: [0, 1, 2, 3, 4]
+row_sample_seed: 20260819       # row cap sample: seed = row_sample_seed + seed
+
+split:                          # D_pred / D_score / D_cal / D_test (test = the remainder)
+  pred: 0.25
+  score: 0.30
+  cal: 0.25
+  pred_val: 0.15                # validation part of D_pred (point predictor early stopping)
+  score_val: 0.20               # validation part of D_score (learned scores, MVCS, copula)
+
+# Point predictor F(x): one MLP per (dataset, seed), fitted on the CPU with 4 threads and
+# shared by every method. reference/point_predictors holds the fitted ones.
+point_predictor:
+  hidden_dims: [64, 32]
+  batch_size: 256
+  learning_rate: 0.001
+  weight_decay: 0.0
+  max_epochs: 200
+  patience: 20
+  min_delta: 1.0e-5
+
+# Both learned scores: (mean V)^(1/d) + lambda_miss * miss + lambda_cov * coverage penalty,
+# threshold tau fixed, Adam with gradient clipping, checkpoint chosen every few epochs by
+# calibrated validation coverage and size.
+score_learning:
+  tau: 1.0
+  kappa_cov: 10.0                        # sigmoid sharpness of the coverage penalty
+  gamma_miss: [0.01, 0.03, 1, 10]        # lambda_miss = gamma_miss * lambda_miss_ref
+  gamma_cov: [0, 0.1, 1]                 # lambda_cov  = gamma_cov  * lambda_cov_ref
+  max_epochs: 400
+  patience: 80
+  grad_clip_norm: 5.0
+  coverage_tolerance: 0.02
+  checkpoint_every: 5
+  min_selection_epoch: 10
+
+# Per-(dataset, seed) tuning at the neutral weights (gamma 1, 1); reference/tuning holds the
+# selections. A one-element grid is not searched.
+tuning:
+  icnn:
+    learning_rate: [0.002]
+    batch_size: [32]
+    encoder_hidden_dims: [[64, 32], [256, 128]]
+  spline:
+    num_knots: [2, 4, 6, 8]
+    learning_rate: [0.002]
+    batch_size: [32, 64, 128]
+    encoder_hidden_dims: [[64, 32], [256, 128]]
+
+icnn:
+  encoder_hidden_dims: [64, 32]          # starting point of the tuner
+  hidden_dim: 64                         # convex body: depth layers of this width
+  depth: 2
+  strong_convexity: 0.001
+  train_area_directions: 512             # d = 2: angles of the area quadrature (training)
+  eval_area_directions: 2048             #        and for validation
+  train_volume_directions: 512           # d > 2: Sobol directions (training)
+  eval_volume_directions: 4096           #        and for validation
+  whiten:                                # d > 2: direction whitening during training
+    momentum: 0.05
+    shrink: 0.05
+    warmup_steps: 20
+  root_finding:                          # d = 1 one-sided roots
+    initial_bracket: 1.0
+    bracket_growth: 2.0
+    max_bracket_expansions: 40
+    bisection_tol: 1.0e-6
+    bisection_max_iter: 100
+  set_boundary:                          # rays at d >= 2
+    initial_radius: 1.0
+    bracket_growth: 2.0
+    max_radius: 1.0e+4
+    tolerance: 1.0e-5
+    bisection_steps: 60
+  test_volume:                           # test-set volume (GPU)
+    rounds: 24
+    refine_directions: 2048
+    budget_by_dim: {1: 16384, default: 32768}   # V(M) and V(2M) from one pass; V(2M) is reported
+    convergence_tolerance: 0.001                # |V(2M)^(1/d) / V(M)^(1/d) - 1| below this = converged
+
+spline:
+  minimum_slope: 1.0e-4
+
+# MVCS with p >= 1 (convex) around F(x) (the inputs are already residuals), with the authors'
+# hyperparameter grid (60 candidates, selected by validation objective).
+mvcs:
+  ridge: 1.0e-6
+  p_init: 2.0
+  max_epochs: 4000
+  patience: 500
+  grad_clip_norm: 5.0
+  nonfinite_batch_tolerance: 0.05
+  grid:
+    hidden_dim: [256]
+    n_layers: [3, 5]
+    matrix_learning_rate: [0.0001, 0.001, 0.004, 0.005, 0.01]
+    p_learning_rate: [0.001, 0.01]
+    batch_size: [100, 200, 1000]
+
+ellipsoid:
+  covariance_ridge: 1.0e-6
+  neighbor_fraction: 0.05                # K = max(2d + 5, ceil(0.05 n)), n = training rows of D_score
+  local_weight: 0.95
+
+empirical_copula:
+  beta: 0.1
+  log_epsilon: 1.0e-8
+  normalizer:
+    hidden_dims: [64, 32]
+    epochs: 300
+    batch_size: 256
+    learning_rate: 1.0e-3
+    weight_decay: 1.0e-4
+    patience: 25
+
+locally_weighted:                        # univariate only
+  rho_floor: 0.001

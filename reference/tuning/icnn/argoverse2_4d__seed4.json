@@ -1,0 +1,14 @@
+{
+ "dataset": "argoverse2_4d",
+ "seed": 4,
+ "method": "icnn",
+ "encoder_input": "xf",
+ "learning_rate": 0.002,
+ "batch_size": 32,
+ "encoder_hidden_dims": [
+  64,
+  32
+ ],
+ "row_fingerprint": "1ad0f0a5afe9c772",
+ "residual_sha": "1fe9002a8b4be284"
+}

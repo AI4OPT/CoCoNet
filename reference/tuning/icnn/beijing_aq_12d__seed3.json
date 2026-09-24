@@ -2,24 +2,13 @@
  "dataset": "beijing_aq_12d",
  "seed": 3,
  "method": "icnn",
+ "encoder_input": "xf",
  "learning_rate": 0.002,
  "batch_size": 32,
- "patience": 80,
  "encoder_hidden_dims": [
   64,
   32
  ],
  "row_fingerprint": "5924baadee7c8170",
- "residual_sha": "dd812e69072cec59",
- "max_rows": 20000,
- "device": "cuda",
- "device_name": "Quadro RTX 6000",
- "n_trainings": 2,
- "tuning_gamma": [
-  1.0,
-  1.0
- ],
- "strong_convexity": 0.001,
- "encoder_selected_by": "coverage_admissible_min_calibrated_validation_volume",
- "encoder_input": "xf"
+ "residual_sha": "dd812e69072cec59"
 }

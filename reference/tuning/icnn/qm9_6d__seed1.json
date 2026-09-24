@@ -1,0 +1,14 @@
+{
+ "dataset": "qm9_6d",
+ "seed": 1,
+ "method": "icnn",
+ "encoder_input": "xf",
+ "learning_rate": 0.002,
+ "batch_size": 32,
+ "encoder_hidden_dims": [
+  256,
+  128
+ ],
+ "row_fingerprint": "79b53246794e5621",
+ "residual_sha": "97e7bfd3dfff3aa1"
+}

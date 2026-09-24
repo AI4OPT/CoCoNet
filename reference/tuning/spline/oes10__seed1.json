@@ -2,27 +2,13 @@
  "dataset": "oes10",
  "seed": 1,
  "method": "spline",
+ "num_knots": 2,
  "learning_rate": 0.002,
  "batch_size": 97,
- "patience": 80,
  "encoder_hidden_dims": [
   64,
   32
  ],
  "row_fingerprint": "4b29309a7df38443",
- "residual_sha": "4638e4a317803c85",
- "max_rows": null,
- "device": "cpu",
- "device_name": "cpu",
- "n_trainings": 7,
- "tuning_gamma": [
-  1.0,
-  1.0
- ],
- "num_knots": 2,
- "stage_rules": {
-  "num_knots": "fallback_undercoverage_simpler",
-  "batch_size": "fallback_undercoverage_simpler",
-  "encoder_hidden_dims": "fallback_undercoverage_simpler"
- }
+ "residual_sha": "4638e4a317803c85"
 }

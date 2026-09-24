@@ -2,27 +2,13 @@
  "dataset": "scpf",
  "seed": 4,
  "method": "spline",
+ "num_knots": 2,
  "learning_rate": 0.002,
  "batch_size": 128,
- "patience": 80,
  "encoder_hidden_dims": [
   256,
   128
  ],
  "row_fingerprint": "c0b0c0b88508c6b9",
- "residual_sha": "5550486b7fcc4f91",
- "max_rows": null,
- "device": "cpu",
- "device_name": "cpu",
- "n_trainings": 7,
- "tuning_gamma": [
-  1.0,
-  1.0
- ],
- "num_knots": 2,
- "stage_rules": {
-  "num_knots": "fallback_undercoverage_simpler",
-  "batch_size": "fallback_undercoverage_simpler",
-  "encoder_hidden_dims": "coverage_admissible_min_calibrated_validation_volume"
- }
+ "residual_sha": "5550486b7fcc4f91"
 }

@@ -1,0 +1,10 @@
+{
+ "dataset": "qm7b",
+ "seed": 1,
+ "max_rows": null,
+ "row_fingerprint": "abd3fd9b0425a64d",
+ "residual_sha": "0257575908d88cf3",
+ "pt_sha256": "b2537767f7394f5afe4344bfdd3d617ed122e214a1ffe7f483f9fa5bc2cd20c9",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126"
+}

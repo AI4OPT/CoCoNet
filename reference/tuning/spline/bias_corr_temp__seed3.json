@@ -1,0 +1,14 @@
+{
+ "dataset": "bias_corr_temp",
+ "seed": 3,
+ "method": "spline",
+ "num_knots": 6,
+ "learning_rate": 0.002,
+ "batch_size": 64,
+ "encoder_hidden_dims": [
+  256,
+  128
+ ],
+ "row_fingerprint": "5030608a80a01836",
+ "residual_sha": "666ad4e2b5ec17df"
+}

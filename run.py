@@ -1,18 +1,15 @@
-"""Run one method on one dataset for one or more seeds, with the paper's configuration.
+"""Run one method on one dataset for one or more seeds.
 
-    python run.py --dataset enb --method icnn --config configs/paper.yaml
-    python run.py --dataset enb --method spline --seeds 0 1 2 3 4
+    python run.py --dataset enb --method icnn
+    python run.py --dataset enb --method spline --seeds 0 1
 
-Steps per (dataset, seed): load the frozen point predictor from reference/point_predictors
-(or fit it with --fit-point-predictor), load the tuned optimizer settings of the learned scores
-from reference/tuning (or tune them with --tune), train and calibrate the method, evaluate on
-the test split, write results/<dataset>/<method>/seed<S>/row.json.
+Per (dataset, seed): load the saved point predictor (or fit it with --fit-point-predictor), load
+the tuned settings of icnn / spline (or tune them with --tune), train and calibrate the method,
+evaluate on the test split and write results/<dataset>/<method>/seed<S>/row.json.
 
-Devices: --method icnn needs a GPU (the paper: Quadro RTX 6000) and a CPU count of 4;
-everything else runs on the CPU with 4 threads (OMP_NUM_THREADS=4, CUDA_VISIBLE_DEVICES=).
+icnn needs a GPU; every other method runs on the CPU with 4 threads. Set CUDA_VISIBLE_DEVICES=
+for the CPU methods so torch does not pick up a GPU.
 """
-
-from __future__ import annotations
 
 import argparse
 import os
@@ -30,125 +27,112 @@ REPO = Path(__file__).resolve().parent
 sys.path.insert(0, str(REPO))
 
 from coconet import pipeline  # noqa: E402
+from coconet.models.icnn import ENCODER_INPUTS  # noqa: E402
 from coconet.tuning import tune_icnn, tune_spline  # noqa: E402
-from coconet.utils import get_logger, load_yaml, read_json, write_json  # noqa: E402
-
-logger = get_logger("run")
+from coconet.utils import load_yaml, read_json, write_json  # noqa: E402
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--dataset", required=True, help="a key of configs/datasets.yaml")
     p.add_argument("--method", required=True, choices=pipeline.ALL_METHODS)
-    p.add_argument("--config", default=str(REPO / "configs" / "paper.yaml"))
-    p.add_argument("--datasets-config", default=str(REPO / "configs" / "datasets.yaml"))
     p.add_argument("--seeds", nargs="+", type=int, default=None, help="default: the config's seeds")
-    p.add_argument("--point-predictor-dir", default=str(REPO / "reference" / "point_predictors"),
-                   help="frozen point predictors <dataset>__seed<S>.pt (+ .json)")
-    p.add_argument("--fit-point-predictor", action="store_true",
-                   help="fit the point predictor here instead of loading it (CPU, 4 threads)")
-    p.add_argument("--tuning-dir", default=str(REPO / "reference" / "tuning"),
-                   help="tuned selections <tuning-dir>/{icnn,spline}/<dataset>__seed<S>.json")
+    p.add_argument("--config", default=str(REPO / "configs" / "experiment.yaml"))
+    p.add_argument("--datasets", default=str(REPO / "configs" / "datasets.yaml"))
+    p.add_argument("--point-predictor-dir", default=str(REPO / "reference" / "point_predictors"))
+    p.add_argument("--fit-point-predictor", action="store_true", help="fit F(x) here instead of loading it")
+    p.add_argument("--tuning-dir", default=str(REPO / "reference" / "tuning"))
     p.add_argument("--tune", action="store_true",
-                   help="run the tuner for icnn/spline and write its selection into --tuning-dir "
-                        "before training (skipped when a selection already exists)")
-    p.add_argument("--encoder-input", default="xf", choices=sorted(pipeline.ICNN_ENCODER_INPUTS),
-                   help="icnn only: the encoder-input ablation arm (xf = the paper's CoCoNet_ICNN)")
+                   help="icnn / spline: tune the settings and save them to --tuning-dir when no file exists yet")
+    p.add_argument("--encoder-input", default="xf", choices=ENCODER_INPUTS,
+                   help="icnn only: what the encoder sees (xf = [x, F(x)], the default model)")
     p.add_argument("--output-dir", default=str(REPO / "results"))
     return p.parse_args()
 
 
-def main() -> int:
+def main():
     args = parse_args()
     cfg = load_yaml(args.config)
-    datasets_cfg = load_yaml(args.datasets_config)
-    if args.dataset not in datasets_cfg:
-        raise SystemExit(f"unknown dataset {args.dataset!r}; see configs/datasets.yaml")
-    output_dim = int(datasets_cfg[args.dataset]["output_dim"])
-    if args.method not in pipeline.methods_for(output_dim):
-        raise SystemExit(f"{args.method} does not apply at d={output_dim}; methods: {pipeline.methods_for(output_dim)}")
+    datasets = load_yaml(args.datasets)
+    if args.dataset not in datasets:
+        sys.exit(f"unknown dataset {args.dataset!r}; see configs/datasets.yaml")
+    d = int(datasets[args.dataset]["output_dim"])
+    if args.method not in pipeline.methods_for(d):
+        sys.exit(f"{args.method} does not apply at d={d}; choose from {pipeline.methods_for(d)}")
     seeds = args.seeds if args.seeds is not None else list(cfg["seeds"])
 
     device = "cpu"
-    if args.method == pipeline.ICNN_METHOD:
+    if args.method == "icnn":
         if not torch.cuda.is_available():
-            raise SystemExit(
-                "icnn needs a GPU (the paper used a Quadro RTX 6000) but torch sees none: "
-                f"torch {torch.__version__} (a CPU-only build has no '+cu' suffix), "
-                f"CUDA_VISIBLE_DEVICES={os.environ.get('CUDA_VISIBLE_DEVICES', '<unset>')!r}. "
-                "Activate the environment with the CUDA build of torch, make sure the job allocation "
-                "requested a GPU (--gres=gpu:1) and that CUDA_VISIBLE_DEVICES is not set to an empty string.")
+            sys.exit("icnn needs a GPU but torch sees none")
         device = "cuda"
-        logger.info("icnn device: %s", torch.cuda.get_device_name(0))
+        print("device:", torch.cuda.get_device_name(0))
     elif torch.cuda.is_available():
-        logger.warning("a GPU is visible but %s runs on the CPU; hide it (CUDA_VISIBLE_DEVICES=) to "
-                       "reproduce the paper's CPU numbers exactly", args.method)
-    logger.info("torch threads: %d (the paper's CPU numbers need 4)", torch.get_num_threads())
+        print(f"warning: a GPU is visible but {args.method} runs on the CPU; hide it with CUDA_VISIBLE_DEVICES=")
+    print("torch threads:", torch.get_num_threads())
 
-    failed = 0
-    rows = []
+    rows, failed = [], 0
     for seed in seeds:
-        out = Path(args.output_dir) / args.dataset / (
-            args.method if args.encoder_input == "xf" else f"{args.method}_{args.encoder_input}") / f"seed{seed}"
+        method_dir = args.method if args.encoder_input == "xf" else f"{args.method}_{args.encoder_input}"
+        out = Path(args.output_dir) / args.dataset / method_dir / f"seed{seed}"
         out.mkdir(parents=True, exist_ok=True)
-        logger.info("=== %s / %s / seed %d ===", args.dataset, args.method, seed)
-        data = pipeline.prepare_data(args.dataset, seed, cfg, datasets_cfg,
+        print(f"=== {args.dataset} / {method_dir} / seed {seed} ===")
+        data = pipeline.prepare_data(args.dataset, seed, cfg, datasets,
                                      None if args.fit_point_predictor else Path(args.point_predictor_dir))
-        logger.info("d=%d input_dim=%d n_pred=%d n_score=%d n_cal=%d n_test=%d residual_sha=%s",
-                    data.output_dim, data.input_dim, data.n_pred, data.n_score, data.n_cal, data.n_test,
-                    data.residual_sha)
+        print(f"d={data.d} input_dim={data.input_dim} n_pred={data.n_pred} n_score={data.n_score} "
+              f"n_cal={data.n_cal} n_test={data.n_test} residual_sha={data.residual_sha}")
 
         tuned = None
-        if args.method in (pipeline.ICNN_METHOD, pipeline.SPLINE):
-            sel_path = Path(args.tuning_dir) / args.method / f"{args.dataset}__seed{seed}.json"
-            if not sel_path.exists() and args.tune:
-                logger.info("tuning %s ...", args.method)
-                sel = (tune_icnn(data, cfg, seed, device, args.encoder_input) if args.method == pipeline.ICNN_METHOD
+        if args.method in ("icnn", "spline"):
+            path = Path(args.tuning_dir) / args.method / f"{args.dataset}__seed{seed}.json"
+            if not path.exists() and args.tune:
+                sel = (tune_icnn(data, cfg, seed, device, args.encoder_input) if args.method == "icnn"
                        else tune_spline(data, cfg, seed))
-                pd.DataFrame(sel.pop("candidates")).to_csv(sel_path.with_name(sel_path.stem + "__candidates.csv"), index=False)
-                write_json(sel_path, sel)
-                logger.info("wrote %s", sel_path)
-            if not sel_path.exists():
-                raise SystemExit(f"no tuned selection at {sel_path}; pass --tune to create it")
-            tuned = read_json(sel_path)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                pd.DataFrame(sel.pop("candidates")).to_csv(path.with_name(path.stem + "__candidates.csv"), index=False)
+                write_json(path, sel)
+            if not path.exists():
+                sys.exit(f"no tuned settings at {path}; pass --tune to create them")
+            tuned = read_json(path)
             for key in ("row_fingerprint", "residual_sha"):
-                if tuned.get(key) not in (None, "", getattr(data, key)):
-                    raise SystemExit(f"{sel_path} was tuned on other data ({key} differs)")
-            logger.info("tuned selection: %s", {k: tuned[k] for k in ("learning_rate", "batch_size", "encoder_hidden_dims")
-                                                if k in tuned} | {k: tuned[k] for k in ("num_knots", "strong_convexity") if k in tuned})
+                if tuned[key] != getattr(data, key):
+                    sys.exit(f"{path} was tuned on other data ({key} differs)")
+            print("tuned settings:", {k: tuned[k] for k in ("learning_rate", "batch_size", "encoder_hidden_dims", "num_knots")
+                                       if k in tuned})
 
         try:
-            res = pipeline.run_method(args.method, data, cfg, tuned, device, args.encoder_input)
-            row = pipeline.evaluate_on_test(res, data, float(cfg["alpha"]))
+            fit = pipeline.run_method(args.method, data, cfg, tuned, device, args.encoder_input)
+            row = pipeline.evaluate(fit, data, float(cfg["alpha"]))
         except Exception as exc:
-            logger.exception("%s seed %d FAILED: %r", args.method, seed, exc)
-            row = {"dataset": args.dataset, "seed": seed, "method": args.method, "d": data.output_dim,
+            print(f"FAILED: {exc!r}")
+            row = {"dataset": args.dataset, "seed": seed, "method": method_dir, "d": data.d,
                    "status": "failed", "error": repr(exc)[:500]}
-            failed += 1
             write_json(out / "row.json", row)
+            failed += 1
             continue
+        row["method"] = method_dir          # an ablation arm is its own method in the tables
         write_json(out / "row.json", row)
-        if res.history:
-            pd.DataFrame(res.history).to_csv(out / "training_history.csv", index=False)
-        cands = res.extra.get("lambda_candidates") or res.extra.get("tuning_candidates")
+        if fit.history:
+            pd.DataFrame(fit.history).to_csv(out / "training_history.csv", index=False)
+        cands = fit.extra.get("lambda_candidates") or fit.extra.get("tuning_candidates")
         if cands:
             pd.DataFrame(cands).to_csv(out / "candidates.csv", index=False)
-        if isinstance(res.model, torch.nn.Module):
-            torch.save(res.model.state_dict(), out / "model_state.pt")
-        elif hasattr(res.model, "model") and isinstance(getattr(res.model, "model"), torch.nn.Module):
-            torch.save(res.model.model.state_dict(), out / "model_state.pt")
-        logger.info("RESULT %s %s seed=%d status=%s coverage=%.4f size=%.6g volume=%.6g",
-                    args.dataset, args.method, seed, row["status"], row["coverage"], row["size"], row["volume"])
+        if isinstance(fit.model, torch.nn.Module):
+            torch.save(fit.model.state_dict(), out / "model_state.pt")
+        elif isinstance(getattr(fit.model, "model", None), torch.nn.Module):
+            torch.save(fit.model.model.state_dict(), out / "model_state.pt")
+        print(f"RESULT {args.dataset} {method_dir} seed={seed} status={row['status']} "
+              f"coverage={row['coverage']:.4f} size={row['size']:.6g} volume={row['volume']:.6g}")
         rows.append(row)
+
+    rows = [r for r in rows if r["status"] == "success"]
     if len(rows) > 1:
-        d = rows[0]["d"]
-        volume = np.array([r["volume"] for r in rows])
-        coverage = np.array([r["coverage"] for r in rows])
-        logger.info("AVERAGE over %d seeds %s: %s %s  size (mean V)^(1/d) = %.4f +- %.4f  coverage = %.4f +- %.4f",
-                    len(rows), [r["seed"] for r in rows], args.dataset, args.method,
-                    volume.mean() ** (1.0 / d), np.std(volume ** (1.0 / d)), coverage.mean(), np.std(coverage))
+        vol = np.array([r["volume"] for r in rows])
+        cov = np.array([r["coverage"] for r in rows])
+        print(f"AVERAGE over seeds {[r['seed'] for r in rows]}: size {vol.mean() ** (1.0 / d):.4f} "
+              f"+- {np.std(vol ** (1.0 / d)):.4f}  coverage {cov.mean():.4f} +- {np.std(cov):.4f}")
     return 1 if failed else 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(main())

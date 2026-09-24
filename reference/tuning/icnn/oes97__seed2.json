@@ -2,24 +2,13 @@
  "dataset": "oes97",
  "seed": 2,
  "method": "icnn",
+ "encoder_input": "xf",
  "learning_rate": 0.002,
  "batch_size": 32,
- "patience": 80,
  "encoder_hidden_dims": [
   64,
   32
  ],
  "row_fingerprint": "1a1c41eda6a158dc",
- "residual_sha": "5025aa546d370bac",
- "max_rows": null,
- "device": "cuda",
- "device_name": "Quadro RTX 6000",
- "n_trainings": 2,
- "tuning_gamma": [
-  1.0,
-  1.0
- ],
- "strong_convexity": 0.001,
- "encoder_selected_by": "fallback_undercoverage_simpler_encoder",
- "encoder_input": "xf"
+ "residual_sha": "5025aa546d370bac"
 }

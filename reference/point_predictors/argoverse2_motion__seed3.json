@@ -1,0 +1,10 @@
+{
+ "dataset": "argoverse2_motion",
+ "seed": 3,
+ "max_rows": 20000,
+ "row_fingerprint": "5924baadee7c8170",
+ "residual_sha": "0cf7023ca8324a9b",
+ "pt_sha256": "c9c6ed4ea8dbbeeeec4941cce361f0d2552554593cb6310d73e3af6658b92a24",
+ "torch_threads": 4,
+ "torch_version": "2.7.1+cu126"
+}

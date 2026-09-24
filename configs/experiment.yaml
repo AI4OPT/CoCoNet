@@ -11,8 +11,8 @@ split:                          # D_pred / D_score / D_cal / D_test (test = the 
   pred_val: 0.15                # validation part of D_pred (point predictor early stopping)
   score_val: 0.20               # validation part of D_score (learned scores, MVCS, copula)
 
-# Point predictor F(x): one MLP per (dataset, seed), fitted on the CPU with 4 threads and
-# shared by every method. reference/point_predictors holds the fitted ones.
+# Point predictor F(x): one ReLU MLP per (dataset, seed), MSE loss, Adam, fitted on the CPU with
+# 4 threads and shared by every method. LW-SC fits its spread model with the same settings.
 point_predictor:
   hidden_dims: [64, 32]
   batch_size: 256
@@ -27,38 +27,39 @@ point_predictor:
 # calibrated validation coverage and size. The epoch cap is per method (icnn / spline below).
 score_learning:
   tau: 1.0
-  kappa_cov: 10.0                        # sigmoid sharpness of the coverage penalty
-  gamma_miss: [0.01, 0.03, 1, 10]        # lambda_miss = gamma_miss * lambda_miss_ref
-  gamma_cov: [0, 0.1, 1]                 # lambda_cov  = gamma_cov  * lambda_cov_ref
+  kappa_cov: 10.0                        # coverage temperature T = 1 / kappa_cov = 0.1
+  gamma_miss: [0.01, 0.03, 1, 10]        # lambda_miss = gamma_miss * lambda_miss_ref (reference scale of the
+  gamma_cov: [0, 0.1, 1]                 # lambda_cov  = gamma_cov  * lambda_cov_ref   initialised model)
   patience: 80
   grad_clip_norm: 5.0
-  coverage_tolerance: 0.02
+  coverage_tolerance: 0.02               # epsilon. Admissible: checkpoints with coverage >= 1 - alpha - eps;
+                                         # loss weights and tuning with |coverage - (1 - alpha)| <= eps
   checkpoint_every: 5
   min_selection_epoch: 10
 
-# Per-(dataset, seed) tuning at the neutral weights (gamma 1, 1); reference/tuning holds the
-# selections. A one-element grid is not searched.
+# Per-(dataset, seed) tuning at the neutral weights (gamma 1, 1). The selection is saved in
+# <output-dir>/tuning and reused. A one-element grid is not searched.
 tuning:
   icnn:
     learning_rate: [0.002]
     batch_size: [32]
     encoder_hidden_dims: [[64, 32], [256, 128]]
   spline:
-    num_knots: [2, 4, 6, 8]
+    num_knots: [2, 4, 6, 8]              # K linear segments per coordinate and sign
     learning_rate: [0.002]
     batch_size: [32, 64, 128]
     encoder_hidden_dims: [[64, 32], [256, 128]]
 
 icnn:
   max_epochs: 400
-  encoder_hidden_dims: [64, 32]          # starting point of the tuner
-  hidden_dim: 64                         # convex body: depth layers of this width
+  encoder_hidden_dims: [64, 32]          # starting point of the tuner (ReLU encoder on [x, F(x)])
+  hidden_dim: 64                         # convex body: depth softplus layers of this width
   depth: 2
   strong_convexity: 0.001
-  train_area_directions: 512             # d = 2: angles of the area quadrature (training)
-  eval_area_directions: 2048             #        and for validation
-  train_volume_directions: 512           # d > 2: Sobol directions (training)
-  eval_volume_directions: 4096           #        and for validation
+  train_area_directions: 512             # d = 2: angles of the area quadrature, M_train = 2^9
+  eval_area_directions: 2048             #        and for validation, M_valid = 2^11
+  train_volume_directions: 512           # d > 2: Sobol directions, M_train = 2^9
+  eval_volume_directions: 4096           #        and for validation, M_valid = 2^12
   whiten:                                # d > 2: direction whitening during training
     momentum: 0.05
     shrink: 0.05
@@ -78,8 +79,11 @@ icnn:
   test_volume:                           # test-set volume (GPU)
     rounds: 24
     refine_directions: 2048
-    budget_by_dim: {1: 16384, default: 32768}   # V(M) and V(2M) from one pass; V(2M) is reported
-    convergence_tolerance: 0.001                # |V(2M)^(1/d) / V(M)^(1/d) - 1| below this = converged
+    budget_by_dim: {1: 16384, default: 32768}   # M = 2^15. V(M) and V(2M) come from one pass; the reported volume
+                                                # is V(2M), i.e. 2^16 directions. At d = 1 the region is an interval:
+                                                # the rays are +1 and -1 only, so the result is its exact length
+                                                # (to the root-finding tolerance) at any budget
+    convergence_tolerance: 0.001                # converged when |V(2M)^(1/d) / V(M)^(1/d) - 1| < 0.1%
 
 spline:
   max_epochs: 300

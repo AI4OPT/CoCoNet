@@ -1,5 +1,6 @@
-"""Training of the convex MVCS model: Adam (separate learning rates for the matrix net and p)
-with a cosine schedule and gradient clipping; p is projected onto p >= 1 after every step. The
+"""Training of the MVCS model: Adam (separate learning rates for the matrix net and p) with a
+cosine schedule and gradient clipping. With `convex`, p is projected onto p >= 1 after every
+step; otherwise p = max(|p|, p_min). The
 kept epoch is the one with the smallest validation objective, which also drives early stopping."""
 
 import math

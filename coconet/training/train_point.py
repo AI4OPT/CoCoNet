@@ -3,7 +3,6 @@ point predictor F(x) and for the auxiliary nets of two baselines."""
 
 from dataclasses import dataclass
 
-import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset

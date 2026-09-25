@@ -6,7 +6,8 @@
 Per (shape, seed): generate the data (coconet/data/synthetic.py), train and calibrate the method
 with the settings of the `synthetic` block in configs/experiment.yaml, and score it on the test
 split: coverage, V/V* (mean region area over the area of the true region) and IoU with the true
-region (on a grid, averaged over 25 inputs). Writes <output-dir>/<shape>/<method>/seed<S>/row.json.
+region (on a grid, averaged over 25 inputs). Writes <output-dir>/<shape>/<method>/seed<S>/row.json
+and region.npz (the score at x = (0, 0) on the grid and its threshold, for plot_synthetic.py).
 
 icnn needs a GPU (4 CPU threads); the other methods run on the CPU with the config's thread count (8).
 """
@@ -69,7 +70,8 @@ def grid_score(method, fit, x, R):
 
 def iou_with_truth(method, fit, shape, s):
     """Intersection over union of the method's region and the true region on a grid, averaged over
-    the representative input (0, 0) and 24 random inputs."""
+    the representative input (0, 0) and 24 random inputs. Also returns the grid axis and the score
+    and threshold at (0, 0), which plot_synthetic.py draws."""
     from matplotlib.path import Path as MplPath
     truth = shape.optimal_region()
     ext = 1.25 * np.abs(shape.outer_region()).max()
@@ -78,12 +80,14 @@ def iou_with_truth(method, fit, shape, s):
     R = np.stack([G1.ravel(), G2.ravel()], 1).astype(np.float32)
     in_truth = MplPath(truth).contains_points(np.stack([G1.ravel(), G2.ravel()], 1))
     xs = np.vstack([np.zeros(2), np.random.default_rng(0).uniform(-1, 1, size=(int(s["iou_inputs"]) - 1, 2))])
-    ious = []
+    ious, at_origin = [], None
     for x in xs:
         score, q = grid_score(method, fit, x, R)
         inside = score <= q
         ious.append(float((inside & in_truth).sum() / max((inside | in_truth).sum(), 1)))
-    return float(np.mean(ious))
+        if at_origin is None:
+            at_origin = (score.reshape(G1.shape), q)
+    return float(np.mean(ious)), g, at_origin
 
 
 def run(args, cfg):
@@ -118,11 +122,15 @@ def run(args, cfg):
                 pd.DataFrame(sel.pop("candidates")).to_csv(path.with_name(path.stem + "__candidates.csv"), index=False)
                 write_json(path, sel)
             tuned = read_json(path)
+            if tuned["residual_sha"] != data.residual_sha:
+                sys.exit(f"{path} was tuned on other data; use another --output-dir")
         fit = pipeline.run_method(args.method, data, cfg, tuned, device)
         row = pipeline.evaluate(fit, data, float(cfg["alpha"]))
-        row.update({"shape": args.shape, "v_star": v_star, "v_over_v_star": row["volume"] / v_star,
-                    "iou": iou_with_truth(args.method, fit, shape, s)})
-        write_json(out / "row.json", row)
+        iou, g, (score, q) = iou_with_truth(args.method, fit, shape, s)
+        row.update({"shape": args.shape, "v_star": v_star, "v_over_v_star": row["volume"] / v_star, "iou": iou})
+        np.savez_compressed(out / "region.npz", grid=g.astype(np.float32), score=score.astype(np.float32),
+                            threshold=np.float32(q), residuals=data.r_test)
+        write_json(out / "row.json", row)                    # last: a run with row.json is complete
         print(f"RESULT {args.shape} {args.method} seed={seed} coverage={row['coverage']:.4f} "
               f"V/V*={row['v_over_v_star']:.4f} IoU={row['iou']:.4f}")
 

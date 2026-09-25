@@ -1,8 +1,9 @@
 """Per-(dataset, seed) tuning of the learned scores' settings, by coordinate descent over the
 grids in the config. Every candidate is trained once at the neutral loss weights
 (gamma_miss = gamma_cov = 1) and scored by calibrated coverage and size on the validation
-split; per stage the winner is the coverage-admissible candidate with the smallest size, else
-the smallest undercoverage and then the simpler setting.
+split; per stage the winner is the coverage-admissible candidate with the smallest size. Without
+one, the encoder and spline stages take the smallest undercoverage and then the simpler setting;
+the ICNN learning-rate and batch stages take the smallest coverage gap and then the smaller size.
 
     icnn     learning rate -> batch size -> encoder width
     spline   knots -> learning rate -> batch size -> encoder width

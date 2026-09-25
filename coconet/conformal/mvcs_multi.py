@@ -102,7 +102,3 @@ class MultiNormMvcs:
             qj = Q.to(rr.device)[j]
             return (v.abs().clamp_min(1e-300).log().mul(qj[:, None]).logsumexp(1) / qj).exp().to(r.dtype)
         return score
-
-    def mu_vector(self, d):
-        with torch.no_grad():
-            return self.m.model(torch.ones(1, d))[0].double().numpy()

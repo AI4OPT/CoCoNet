@@ -1,4 +1,4 @@
-# The datasets: `name` (table label), `output_dim`, `max_rows` (seeded random row cap, null =
+# The datasets: `name` (display name, as in the README), `output_dim`, `max_rows` (seeded random row cap, null =
 # all rows), `loader` (a key of coconet/data/loaders.py:LOADERS) and the loader's own fields.
 # Raw files live in data/raw; UCI and OpenML files are downloaded on first use if missing.
 

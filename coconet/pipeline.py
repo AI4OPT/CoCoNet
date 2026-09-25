@@ -24,7 +24,7 @@ from coconet.conformal.mvcs_multi import MultiNormMvcs
 from coconet.data.loaders import load_dataset
 from coconet.data.preprocessing import Preprocessor
 from coconet.data.splits import four_way_split, train_val_split
-from coconet.models.icnn import ENCODER_INPUTS, ICNN
+from coconet.models.icnn import ICNN
 from coconet.models.mlp import MLP
 from coconet.models.spline import SplineScore, compute_knots
 from coconet.models.volume_estimator import Gauge, estimate_log_volumes, log_volume_converged, pick_budget

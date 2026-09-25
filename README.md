@@ -6,7 +6,6 @@
 
 ![Python](https://img.shields.io/badge/python-3.13-3776AB?logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/pytorch-2.7-EE4C2C?logo=pytorch&logoColor=white)
-![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
 <img src="figures/synthetic_learning.gif" width="100%" alt="The ICNN score and its 90% region during training on four synthetic shapes">
 
@@ -45,7 +44,6 @@ D<sub>test</sub> by joint coverage and size (mean volume)<sup>1/d</sup>.
 | 📊 **Multivariate benchmark** | 30 datasets, response dimension d = 2 to 16 |
 | 📈 **Univariate benchmark** | 6 datasets |
 | ⚖️ **Extended comparison** | MVCS with free exponents, multi-norm MVCS and PBS |
-| 🧪 **Encoder ablation** | seven choices of what the ICNN encoder sees, on 10 datasets |
 
 All at 90% target coverage over five seeds. The repository ships code and raw data only: **no
 results, fitted models or tuned settings are stored**; every number comes from running the
@@ -61,7 +59,7 @@ experiments.
 | Emp. Cop. | `empirical_copula` | axis-aligned box from the empirical copula of normalized scores |
 | G-Ellip. | `global_ellipsoid` | one Mahalanobis ellipsoid |
 | L-Ellip. | `local_ellipsoid` | k-nearest-neighbour local covariance ellipsoid |
-| MVCS | `mvcs` | convex (p ≥ 1) minimum-volume covering set |
+| MVCS | `mvcs` | convex (q ≥ 1) minimum-volume covering set |
 | LW-SC | `locally_weighted` | locally weighted split-conformal interval (univariate only) |
 
 <details>
@@ -94,17 +92,17 @@ files that are missing are downloaded on first use.
 ## Quick start
 
 Each command runs **one method on one dataset or shape**, for every seed or for the seeds you
-give, and writes one `row.json` per seed.
+give, and writes one folder per seed with its `row.json`.
 
 ```bash
 # real data: results/<dataset>/<method>/seed<S>/row.json
-python run.py --dataset enb --method icnn                     # GPU, seeds 0-4
-python run.py --dataset enb --method spline --seeds 0 1       # CPU
+python run.py --dataset enb --method icnn                     # seeds 0-4
+python run.py --dataset enb --method spline --seeds 0 1
 python run.py --dataset concrete --method locally_weighted    # univariate baseline
 
 # synthetic shapes: results_synthetic/<shape>/<method>/seed<S>/row.json
-python synthetic.py --shape triangle --method icnn            # GPU, seeds 42-46
-python synthetic.py --shape rectangle --method mvcs           # CPU
+python synthetic.py --shape triangle --method icnn            # seeds 42-46
+python synthetic.py --shape rectangle --method mvcs
 ```
 
 Each `row.json` holds the test coverage, the mean volume and its size (mean V)<sup>1/d</sup>,
@@ -134,6 +132,12 @@ x = (0, 0) and 24 random inputs. The settings that differ from the real-data run
 `synthetic` block of `configs/experiment.yaml`: γ<sub>cov</sub> ∈ {0, 0.1}, and a fixed ICNN
 (learning rate 0.002, batch size 32, encoder [64, 32]). The spline is tuned as on real data.
 
+**Notebook.** `synthetic.ipynb` walks through the whole experiment cell by cell: it runs every
+method on every shape through `synthetic.py` (skipping finished runs), lists the per-run numbers
+and draws the figure of calibrated 90% regions against the true region. The figure alone is
+`python plot_synthetic.py`, which reads the `region.npz` file each run saves (the method's score at
+x = (0, 0) on the IoU grid) for `icnn`, `mvcs`, `spline` and `local_ellipsoid`.
+
 ### 📊 Real data
 
 ```bash
@@ -155,86 +159,44 @@ take `absolute_residual`, `locally_weighted`, `mvcs`, `spline` and `icnn`.
 > **Volumes.** By default each baseline reports the closed-form volume of its region. The
 > reported multivariate volumes instead measure every region with the same Monte Carlo
 > estimator the ICNN uses (per test point, groups of 30 points, 2<sup>15</sup> directions,
-> doubling until the size changes by less than 0.1%). Add `--volume estimator` to do the same;
-> it uses a GPU when one is visible. PBS always reports its own change-of-variables volume, and
-> univariate intervals are exact.
-
-### 🧪 Encoder ablation
-
-The ICNN is run with `--encoder-input {xf, f, x, none, id_xf, id_x, id_f}`:
-
-- `xf`, the default model, feeds [x, F(x)] to the encoder.
-- `x` and `f` feed only one of the two.
-- `none` learns one global set.
-- The `id_` arms feed the raw context without an encoder MLP.
-
-The ablation covers ENB, Bias-Corr. Temp., Online Retail II, SCPF, QM8, Communities Crime,
-QM9-8D, Knee Contact Force, QM7b and OES97. Every arm reuses the tuned settings of the default
-model, so run `--encoder-input xf` first; it tunes. Datasets with more than 10,000 rows are
-capped at 10,000 for the ablation. Give those runs their own output folder, since the split
-differs:
-
-```bash
-python run.py --dataset qm8 --method icnn --max-rows 10000 --output-dir results_rows10000
-python run.py --dataset qm8 --method icnn --encoder-input x --max-rows 10000 --output-dir results_rows10000
-```
+> doubling until the size changes by less than 0.1%). Add `--volume estimator` to do the same.
+> PBS always reports its own change-of-variables volume, and univariate intervals are exact.
 
 ## Reproducibility
 
-| | Real data | Synthetic shapes |
-|---|---|---|
-| CPU methods | Intel Xeon, 4 threads | Intel Xeon, 8 threads |
-| `icnn` | Quadro RTX 6000 | NVIDIA L40S (ellipse seeds 42, 45, 46: H200) |
-
-`run.py` sets `OMP_NUM_THREADS=4` and `synthetic.py` sets 8, unless the variable is already set.
-For the CPU methods hide any GPU with `CUDA_VISIBLE_DEVICES=`. A cluster job needs one node,
-4 to 8 cores, 8 GB per core and, for `icnn`, one GPU.
-
-On the same hardware and package versions, a run reproduces the reported numbers exactly, from
-the point-predictor fit through tuning and training to the test volume. Other CPU or GPU models
-change the last bits of floating-point results. The tuning, loss-weight and checkpoint
-selections can amplify these into small differences.
+The CoCoNet<sub>ICNN</sub> results were produced on a Quadro RTX 6000.
 
 ## Protocol
 
-Every setting lives in `configs/experiment.yaml`; datasets are defined in `configs/datasets.yaml`.
+All settings live in `configs/experiment.yaml`; the datasets are defined in `configs/datasets.yaml`.
 
-- **Splits.** 25 / 30 / 25 / 20% (D<sub>pred</sub> / D<sub>score</sub> / D<sub>cal</sub> /
-  D<sub>test</sub>) from one seeded permutation. Large datasets are first capped to a seeded
-  random sample. Features are standardized and one-hot encoded, and targets standardized, with
-  statistics of D<sub>pred</sub> only. Volumes are reported on the original target scale.
-- **Loss.** The learned scores minimise
-  (mean V)<sup>1/d</sup> + λ<sub>miss</sub> · mean[(S − 1)<sub>+</sub>] + λ<sub>cov</sub> · (mean σ(10 (1 − S)) − 0.9)<sup>2</sup>
-  on D<sub>score</sub>, with the threshold fixed at 1.
-- **Optimisation.** Adam, gradient clipping at 5, at most 400 epochs (ICNN) or 300 (spline),
-  patience 80. The checkpoint is chosen every 5 epochs by calibrated validation coverage and
-  size.
-- **Loss weights.** Multiples γ of reference scales measured on the initialised model, searched
-  over γ<sub>miss</sub> ∈ {0.01, 0.03, 1, 10} × γ<sub>cov</sub> ∈ {0, 0.1, 1}. The winner is the
-  coverage-admissible candidate with the smallest validation size.
-- **Tuning.** Per (dataset, seed), at the neutral weights. For the ICNN: the encoder width
-  ({[64, 32], [256, 128]}). For the spline: the knots {2, 4, 6, 8}, the batch size
-  {32, 64, 128} and the encoder width.
-- **ICNN test volume.** A whitened Monte Carlo estimate computed at M = 2<sup>15</sup> and
-  2M = 2<sup>16</sup> directions in one pass; the 2<sup>16</sup> estimate is reported. It counts
-  as converged when doubling changes the size by less than 0.1%. At d = 1 the region is an interval
-  and its exact length is reported.
-- **Baselines.**
-  - MVCS uses its authors' hyperparameter grid (60 candidates, selected by validation
-    objective), with p ≥ 1 (`mvcs`) or p = max(|p|, 0.1) (`mvcs_free`).
-  - The multi-norm variants use the authors' code and defaults with two splits; the convex
-    one projects every exponent onto q ≥ 1 after each step.
-  - PBS trains the five network configurations in the config and keeps the one with the
-    smallest validation coverage error of its plug-in sets.
-  - The ellipsoids, the copula and LW-SC use the settings listed in the config.
+| Stage | Setting |
+|---|---|
+| **Data split** | D<sub>pred</sub> / D<sub>score</sub> / D<sub>cal</sub> / D<sub>test</sub> = 25 / 30 / 25 / 20% from one seeded permutation; large datasets are first capped to a seeded random sample |
+| **Preprocessing** | features standardized and one-hot encoded, targets standardized, all with statistics of D<sub>pred</sub>; volumes are reported on the original target scale |
+| **Point predictor** | MLP [64, 32] fitted on D<sub>pred</sub> and frozen; every method uses its residuals |
+| **Objective** | (mean V)<sup>1/d</sup> + λ<sub>miss</sub> · mean[(S − 1)<sub>+</sub>] + λ<sub>cov</sub> · (mean σ(10 (1 − S)) − 0.9)<sup>2</sup>, threshold fixed at 1 |
+| **Optimisation** | Adam, gradient clipping at 5, patience 80; at most 400 epochs (ICNN) or 300 (spline) |
+| **Loss weights** | λ = γ × reference scale of the initialised model; γ<sub>miss</sub> ∈ {0.01, 0.03, 1, 10} × γ<sub>cov</sub> ∈ {0, 0.1, 1}; the coverage-admissible candidate with the smallest validation size wins |
+| **Checkpoint** | every 5 epochs, by calibrated validation coverage and size |
+| **Tuning** | per (dataset, seed), at the neutral weights: the ICNN encoder width {[64, 32], [256, 128]}; the spline knots {2, 4, 6, 8}, batch size {32, 64, 128} and encoder width |
+| **Calibration** | split conformal on D<sub>cal</sub>, 90% target coverage |
+| **ICNN volume** | whitened Monte Carlo estimate at M = 2<sup>15</sup> and 2M = 2<sup>16</sup> directions in one pass, 2<sup>16</sup> reported; converged when doubling changes the size by less than 0.1%; at d = 1 the exact interval length |
+
+| Baseline | Setting |
+|---|---|
+| **MVCS** | the authors' hyperparameter grid (60 candidates, selected by validation objective); q ≥ 1 (`mvcs`) or q = max(\|q\|, 0.1) (`mvcs_free`) |
+| **Multi-norm MVCS** | the authors' code and defaults with two splits; the convex variant projects every exponent onto q ≥ 1 after each step |
+| **PBS** | the five network configurations in the config; the one with the smallest validation coverage error of its plug-in sets is kept |
+| **Ellipsoids, copula, LW-SC** | the settings listed in the config |
 
 ## Datasets
 
 `n` is the number of rows in the source data after rows with a missing target are dropped, `d_x`
 the number of input features after preprocessing (constant columns dropped, categorical
 columns one-hot encoded; seed 0), `d` the response dimension, and
-"rows used" the seeded random subsample the experiments run on (`max_rows` in
-`configs/datasets.yaml`). Missing features are median-imputed from D<sub>pred</sub>. The encoder
+"rows used" the number of rows the experiments run on: a seeded random subsample when the
+source has more rows than `max_rows` in `configs/datasets.yaml`, otherwise all of them. Missing features are median-imputed from D<sub>pred</sub>. The encoder
 is fitted on D<sub>pred</sub>, so the number of one-hot columns can change with the seed: 36 to 42
 for Online Retail II and 60 to 61 for Bike Sharing.
 
@@ -296,7 +258,9 @@ mu, alpha, homo, lumo, r2, zpve, Cv, U0 (then gap, U, H, G, unused).
 
 ```
 ├── run.py                   one method on one real dataset  → results/<dataset>/<method>/seed<S>/row.json
-├── synthetic.py             one method on one synthetic shape → results_synthetic/<shape>/<method>/seed<S>/row.json
+├── synthetic.py             one method on one synthetic shape → results_synthetic/<shape>/<method>/seed<S>/
+├── synthetic.ipynb          the synthetic experiment step by step: runs, per-run results, figure
+├── plot_synthetic.py        the figure of synthetic regions, from the saved runs
 ├── fit_point_predictor.py   fit and save the MLP point predictor of a dataset
 ├── configs/
 │   ├── experiment.yaml      every setting of the experiments
@@ -311,7 +275,3 @@ mu, alpha, homo, lumo, r2, zpve, Cv, U0 (then gap, U, H, G, unused).
 ├── scripts/get_mvcs.sh      fetches the MVCS authors' code used by the multi-norm baselines
 └── data/raw/                raw dataset files
 ```
-
-## License
-
-Released under the MIT License; see [LICENSE](LICENSE).

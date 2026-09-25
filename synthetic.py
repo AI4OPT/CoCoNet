@@ -8,8 +8,6 @@ with the settings of the `synthetic` block in configs/experiment.yaml, and score
 split: coverage, V/V* (mean region area over the area of the true region) and IoU with the true
 region (on a grid, averaged over 25 inputs). Writes <output-dir>/<shape>/<method>/seed<S>/row.json
 and region.npz (the score at x = (0, 0) on the grid and its threshold, for plot_synthetic.py).
-
-icnn needs a GPU (4 CPU threads); the other methods run on the CPU with the config's thread count (8).
 """
 
 import argparse
@@ -96,16 +94,8 @@ def run(args, cfg):
     cfg["score_learning"]["gamma_cov"] = s["gamma_cov"]
     shape = Shape(args.shape)
     v_star = polygon_area(shape.optimal_region())
-    device = "cpu"
-    if args.method == "icnn":
-        if not torch.cuda.is_available():
-            sys.exit("icnn needs a GPU but torch sees none")
-        device = "cuda"
-        print("device:", torch.cuda.get_device_name(0))
-        torch.set_num_threads(4)
-    else:
-        torch.set_num_threads(int(s["cpu_threads"]))
-    print("torch threads:", torch.get_num_threads())
+    device = "cuda" if args.method == "icnn" and torch.cuda.is_available() else "cpu"
+    torch.set_num_threads(4 if args.method == "icnn" else int(s["threads"]))
     for seed in args.seeds or s["seeds"]:
         out = Path(args.output_dir) / args.shape / args.method / f"seed{seed}"
         out.mkdir(parents=True, exist_ok=True)

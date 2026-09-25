@@ -6,9 +6,6 @@
 Per (dataset, seed): fit the MLP point predictor, tune icnn / spline (once; the choice is saved in
 <output-dir>/tuning and reused by later runs), train and calibrate the method, evaluate on the
 test split and write <output-dir>/<dataset>/<method>/seed<S>/row.json.
-
-icnn needs a GPU; every other method runs on the CPU with 4 threads. Set CUDA_VISIBLE_DEVICES=
-for the CPU methods so torch does not pick up a GPU.
 """
 
 import argparse
@@ -66,15 +63,7 @@ def main():
         sys.exit(f"{args.method} does not apply at d={d}; choose from {pipeline.methods_for(d)}")
     seeds = args.seeds if args.seeds is not None else list(cfg["seeds"])
 
-    device = "cpu"
-    if args.method == "icnn":
-        if not torch.cuda.is_available():
-            sys.exit("icnn needs a GPU but torch sees none")
-        device = "cuda"
-        print("device:", torch.cuda.get_device_name(0))
-    elif torch.cuda.is_available() and args.volume != "estimator":
-        print(f"warning: a GPU is visible but {args.method} runs on the CPU; hide it with CUDA_VISIBLE_DEVICES=")
-    print("torch threads:", torch.get_num_threads())
+    device = "cuda" if args.method == "icnn" and torch.cuda.is_available() else "cpu"
 
     rows, failed = [], 0
     for seed in seeds:
@@ -110,7 +99,6 @@ def main():
             row = pipeline.evaluate(fit, data, float(cfg["alpha"]))
             if args.volume == "estimator" and fit.gauge is not None and data.d > 1:
                 vdev = "cuda" if torch.cuda.is_available() else "cpu"
-                print("volume estimator on", torch.cuda.get_device_name(0) if vdev == "cuda" else "cpu")
                 est = pipeline.estimator_volume(fit, data, cfg, vdev)
                 row.update({"volume_closed_form": row["volume"], "size_closed_form": row["size"], **est})
         except Exception as exc:

@@ -132,11 +132,24 @@ x = (0, 0) and 24 random inputs. The settings that differ from the real-data run
 `synthetic` block of `configs/experiment.yaml`: γ<sub>cov</sub> ∈ {0, 0.1}, and a fixed ICNN
 (learning rate 0.002, batch size 32, encoder [64, 32]). The spline is tuned as on real data.
 
-**Notebook.** `synthetic.ipynb` walks through the whole experiment cell by cell: it runs every
-method on every shape through `synthetic.py` (skipping finished runs), lists the per-run numbers
-and draws the figure of calibrated 90% regions against the true region. The figure alone is
-`python plot_synthetic.py`, which reads the `region.npz` file each run saves (the method's score at
-x = (0, 0) on the IoU grid) for `icnn`, `mvcs`, `spline` and `local_ellipsoid`.
+### 📓 Notebook
+
+`synthetic.ipynb` runs the synthetic experiment from start to finish and is shipped with its outputs, so the
+results and the figure can be read without running anything.
+
+| Step | What it does |
+|---|---|
+| **Settings** | shapes, methods and seeds; by default one seed per shape (the figure seeds), or all five with `SEEDS = [42, 43, 44, 45, 46]` |
+| **1. Run** | every method on every shape through `synthetic.py`; finished runs are not repeated and their saved result is shown |
+| **2. Results** | test coverage, V/V\* and IoU of every run |
+| **3. Figure** | the calibrated 90% regions of CoCoNet<sub>ICNN</sub>, MVCS, CoCoNet<sub>Spline</sub> and L-Ellip. against the true region, saved as `results_synthetic/synthetic_regions.pdf` |
+
+```bash
+jupyter notebook synthetic.ipynb
+```
+
+The figure alone is `python plot_synthetic.py`. It reads the `region.npz` file that each run saves (the
+method's score at x = (0, 0) on the IoU grid).
 
 ### 📊 Real data
 

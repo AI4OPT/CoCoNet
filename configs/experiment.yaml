@@ -145,7 +145,7 @@ pbs:
 # (run.py --volume estimator). Same estimator as the ICNN's test volume; groups of 30 test points.
 volume_estimator:
   reported_budget: 32768
-  max_budget: 2097152                    # doubling stops here if the tolerance is never met
+  max_budget: 8388608                    # 2^23: doubling stops here if the tolerance is never met
   tolerance_pct: 0.1                     # |(V(2M)/V(M))^(1/d) - 1| in percent
   rounds: 24
   refine_directions: 2048

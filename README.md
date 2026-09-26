@@ -55,7 +55,7 @@ experiments.
 |---|---|---|
 | **CoCoNet<sub>ICNN</sub>** | `icnn` | sublevel set of an input-convex neural network score |
 | **CoCoNet<sub>Spline</sub>** | `spline` | rotated box from convex piecewise-linear scores |
-| Abs. Res. | `absolute_residual` | cube, s = max<sub>j</sub> \|r<sub>j</sub>\| |
+| Abs. Res. | `absolute_residual` | axis-aligned box, s = max<sub>j</sub> \|r<sub>j</sub>\| on standardized residuals |
 | Emp. Cop. | `empirical_copula` | axis-aligned box from the empirical copula of normalized scores |
 | G-Ellip. | `global_ellipsoid` | one Mahalanobis ellipsoid |
 | L-Ellip. | `local_ellipsoid` | k-nearest-neighbour local covariance ellipsoid |
@@ -68,7 +68,7 @@ experiments.
 | Method | `--method` | Prediction region |
 |---|---|---|
 | MVCS, free q | `mvcs_free` | the same set with a free exponent (q ≥ 0.1, not convex when q < 1) |
-| MVCS multi-norm, q ≥ 1 | `mvcs_multi` | one global set: a scaled q<sub>j</sub>-norm ball per orthant after a rotation, every q<sub>j</sub> ≥ 1 |
+| MVCS multi-norm, q ≥ 1 | `mvcs_multi` | one global set: after a rotation, a scaled q<sub>j</sub>-norm ball in each of 4 regions (signs of the first two rotated coordinates), every q<sub>j</sub> ≥ 1 |
 | MVCS multi-norm, free q | `mvcs_multi_free` | the same with free exponents |
 | PBS | `pbs` | pullback of a Euclidean ball through a conditional neural optimal-transport map |
 
@@ -169,11 +169,11 @@ take `absolute_residual`, `locally_weighted`, `mvcs`, `spline` and `icnn`.
 > `python fit_point_predictor.py --dataset enb --out my_predictors` and pass
 > `--point-predictor-dir my_predictors`.
 
-> **Volumes.** By default each baseline reports the closed-form volume of its region. The
-> reported multivariate volumes instead measure every region with the same Monte Carlo
-> estimator the ICNN uses (per test point, groups of 30 points, 2<sup>15</sup> directions,
-> doubling until the size changes by less than 0.1%). Add `--volume estimator` to do the same.
-> PBS always reports its own change-of-variables volume, and univariate intervals are exact.
+> **Volumes.** On real data, every multivariate region is measured with the same Monte Carlo estimator the
+> ICNN uses (per test point, groups of 30 points, 2<sup>15</sup> directions, doubling until the
+> size changes by less than 0.1%), as in the reported results. `--volume closed_form` reports each
+> baseline's closed-form volume instead. PBS always reports its own change-of-variables volume,
+> and univariate intervals are exact.
 
 ## Reproducibility
 

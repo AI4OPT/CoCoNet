@@ -43,9 +43,9 @@ def parse_args():
                    help="icnn only: what the encoder sees (xf = [x, F(x)], the default model)")
     p.add_argument("--max-rows", type=int, default=None,
                    help="row cap in place of the dataset's (the encoder ablation uses 10000)")
-    p.add_argument("--volume", default="closed_form", choices=("closed_form", "estimator"),
-                   help="multivariate methods other than icnn and pbs: report the closed-form volume, or measure the "
-                        "region with the shared Monte Carlo estimator (as the reported numbers do)")
+    p.add_argument("--volume", default="estimator", choices=("estimator", "closed_form"),
+                   help="multivariate methods other than icnn and pbs: measure the region with the shared Monte Carlo "
+                        "estimator (as the reported numbers do), or report its closed-form volume")
     p.add_argument("--output-dir", default=str(REPO / "results"))
     return p.parse_args()
 
@@ -61,6 +61,8 @@ def main():
     d = int(datasets[args.dataset]["output_dim"])
     if args.method not in pipeline.methods_for(d):
         sys.exit(f"{args.method} does not apply at d={d}; choose from {pipeline.methods_for(d)}")
+    if args.encoder_input != "xf" and args.method != "icnn":
+        sys.exit("--encoder-input applies to icnn only")
     seeds = args.seeds if args.seeds is not None else list(cfg["seeds"])
 
     device = "cuda" if args.method == "icnn" and torch.cuda.is_available() else "cpu"
@@ -76,31 +78,32 @@ def main():
         print(f"d={data.d} input_dim={data.input_dim} n_pred={data.n_pred} n_score={data.n_score} "
               f"n_cal={data.n_cal} n_test={data.n_test} residual_sha={data.residual_sha}")
 
-        tuned = None
-        if args.method in ("icnn", "spline"):
-            # Every encoder-ablation arm reuses the settings tuned for the default model ([x, F(x)]).
-            tuning_dir = Path(args.tuning_dir) if args.tuning_dir else Path(args.output_dir) / "tuning"
-            path = tuning_dir / args.method / f"{args.dataset}__seed{seed}.json"
-            if not path.exists():
-                print(f"tuning {args.method} ...")
-                sel = tune_icnn(data, cfg, seed, device) if args.method == "icnn" else tune_spline(data, cfg, seed)
-                path.parent.mkdir(parents=True, exist_ok=True)
-                pd.DataFrame(sel.pop("candidates")).to_csv(path.with_name(path.stem + "__candidates.csv"), index=False)
-                write_json(path, sel)
-            tuned = read_json(path)
-            for key in ("row_fingerprint", "residual_sha"):
-                if tuned[key] != getattr(data, key):
-                    sys.exit(f"{path} was tuned on other data ({key} differs); use another --output-dir or --tuning-dir")
-            print("tuned settings:", {k: tuned[k] for k in ("learning_rate", "batch_size", "encoder_hidden_dims", "num_knots")
-                                       if k in tuned})
-
         try:
+            tuned = None
+            if args.method in ("icnn", "spline"):
+                # Every encoder-ablation arm reuses the settings tuned for the default model ([x, F(x)]).
+                tuning_dir = Path(args.tuning_dir) if args.tuning_dir else Path(args.output_dir) / "tuning"
+                path = tuning_dir / args.method / f"{args.dataset}__seed{seed}.json"
+                if not path.exists():
+                    print(f"tuning {args.method} ...")
+                    sel = tune_icnn(data, cfg, seed, device) if args.method == "icnn" else tune_spline(data, cfg, seed)
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    pd.DataFrame(sel.pop("candidates")).to_csv(path.with_name(path.stem + "__candidates.csv"), index=False)
+                    write_json(path, sel)
+                tuned = read_json(path)
+                for key in ("row_fingerprint", "residual_sha"):
+                    if tuned[key] != getattr(data, key):
+                        sys.exit(f"{path} was tuned on other data ({key} differs); use another --output-dir or --tuning-dir")
+                print("tuned settings:", {k: tuned[k] for k in ("learning_rate", "batch_size", "encoder_hidden_dims", "num_knots")
+                                           if k in tuned})
+
             fit = pipeline.run_method(args.method, data, cfg, tuned, device, args.encoder_input)
             row = pipeline.evaluate(fit, data, float(cfg["alpha"]))
             if args.volume == "estimator" and fit.gauge is not None and data.d > 1:
                 vdev = "cuda" if torch.cuda.is_available() else "cpu"
                 est = pipeline.estimator_volume(fit, data, cfg, vdev)
                 row.update({"volume_closed_form": row["volume"], "size_closed_form": row["size"], **est})
+                row["status"] = "success" if np.isfinite(row["volume"]) and row["volume"] > 0 else "invalid"
         except Exception as exc:
             print(f"FAILED: {exc!r}")
             row = {"dataset": args.dataset, "seed": seed, "method": method_dir, "d": data.d,

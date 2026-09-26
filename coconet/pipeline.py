@@ -409,7 +409,7 @@ def fit_learned_score(build, data, cfg, settings, device):
                                       data.x_val.astype(f32), data.r_val.astype(f32), float(cfg["alpha"]), settings,
                                       [float(g) for g in s["gamma_miss"]], [float(g) for g in s["gamma_cov"]], device)
     res = best["result"]
-    model = res.model.eval()
+    model = res.model.to("cpu").eval()           # also moves the shared point predictor back
     with torch.no_grad():
         q = conformal_threshold(model.score(_t(data.x_cal), _t(data.r_cal)).numpy().reshape(-1), float(cfg["alpha"]))
     extra = {k: best[k] for k in ("gamma_miss", "gamma_cov", "lambda_miss", "lambda_cov",
@@ -574,6 +574,7 @@ def estimator_volume(fit, data, cfg, device):
             break
         top *= 4 if top == reported else 2
     jac = float(np.exp(np.sum(np.log(data.target_std))))
-    return {"volume": mean_v[budget] * jac, "size": (mean_v[budget] * jac) ** (1.0 / data.d),
+    return {"volume": mean_v[budget] * jac, "volume_standardized": mean_v[budget],
+            "size": (mean_v[budget] * jac) ** (1.0 / data.d),
             "volume_budget": budget, "volume_converged": converged,
             "volume_by_budget_standardized": mean_v}

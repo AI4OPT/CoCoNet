@@ -33,10 +33,13 @@ def main():
     p.add_argument("--seeds", nargs="+", type=int, default=None)
     p.add_argument("--config", default=str(REPO / "configs" / "experiment.yaml"))
     p.add_argument("--datasets", default=str(REPO / "configs" / "datasets.yaml"))
+    p.add_argument("--max-rows", type=int, default=None, help="row cap in place of the dataset's, as in run.py")
     p.add_argument("--out", required=True)
     p.add_argument("--force", action="store_true")
     a = p.parse_args()
     cfg, datasets = load_yaml(a.config), load_yaml(a.datasets)
+    if a.max_rows is not None:
+        datasets[a.dataset]["max_rows"] = a.max_rows
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     print("torch threads:", torch.get_num_threads())

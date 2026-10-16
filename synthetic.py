@@ -2,6 +2,7 @@
 
     python synthetic.py --shape triangle --method icnn            # seeds 42-46
     python synthetic.py --shape triangle --method spline --seeds 42
+    python synthetic.py --shape triangle --method spline_l1 --seeds 42   # reuses the spline's tuning
 
 Per (shape, seed): generate the data (coconet/data/synthetic.py), train and calibrate the method
 with the settings of the `synthetic` block in configs/experiment.yaml, and score it on the test
@@ -31,7 +32,8 @@ from coconet.data.synthetic import SHAPES, ExactMean, Shape, polygon_area  # noq
 from coconet.tuning import tune_spline  # noqa: E402
 from coconet.utils import load_yaml, read_json, residual_sha, set_seed, write_json  # noqa: E402
 
-METHODS = ("absolute_residual", "empirical_copula", "global_ellipsoid", "local_ellipsoid", "mvcs", "spline", "icnn")
+METHODS = ("absolute_residual", "empirical_copula", "global_ellipsoid", "local_ellipsoid", "mvcs", "spline", "spline_l1",
+           "icnn")
 
 
 def make_data(shape, seed, s):
@@ -54,7 +56,7 @@ def make_data(shape, seed, s):
 def grid_score(method, fit, x, R):
     """The method's own conformity score at input x for every residual row of R, and its threshold."""
     X = np.repeat(np.asarray(x, dtype=np.float32).reshape(1, -1), len(R), axis=0)
-    if method in ("icnn", "spline"):
+    if method in ("icnn", "spline", "spline_l1"):
         with torch.no_grad():
             s = fit.model.score(torch.as_tensor(X), torch.as_tensor(R)).numpy()
     elif method in ("mvcs", "global_ellipsoid", "local_ellipsoid"):
@@ -104,7 +106,7 @@ def run(args, cfg):
         tuned = None
         if args.method == "icnn":
             tuned = dict(s["icnn"])                         # fixed, not tuned
-        elif args.method == "spline":
+        elif args.method in ("spline", "spline_l1"):                # the l_1 spline reuses the spline's tuning
             path = Path(args.output_dir) / "tuning" / "spline" / f"{args.shape}__seed{seed}.json"
             if not path.exists():
                 sel = tune_spline(data, cfg, seed)

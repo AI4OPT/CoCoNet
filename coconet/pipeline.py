@@ -38,7 +38,7 @@ REPO = Path(__file__).resolve().parents[1]
 RAW_DIR = REPO / "data" / "raw"
 
 MULTIVARIATE_METHODS = ("absolute_residual", "empirical_copula", "global_ellipsoid", "local_ellipsoid",
-                        "mvcs", "spline", "icnn")
+                        "mvcs", "spline", "spline_l1", "icnn")
 UNIVARIATE_METHODS = ("absolute_residual", "locally_weighted", "mvcs", "spline", "icnn")
 # further baselines of the extended multivariate comparison
 EXTRA_METHODS = ("mvcs_free", "mvcs_multi", "mvcs_multi_free", "pbs")
@@ -395,10 +395,11 @@ def build_icnn(data, cfg, encoder_hidden_dims, encoder_input="xf"):
                 root_finding=c["root_finding"], set_boundary=c["set_boundary"])
 
 
-def build_spline(data, cfg, encoder_hidden_dims, num_knots):
+def build_spline(data, cfg, encoder_hidden_dims, num_knots, norm="inf"):
     knots = [compute_knots(data.r_score[:, j], num_knots) for j in range(data.d)]
     return SplineScore(data.input_dim, data.d, data.point_model, [k[0] for k in knots], [k[1] for k in knots],
-                       encoder_hidden_dims=list(encoder_hidden_dims), minimum_slope=cfg["spline"]["minimum_slope"])
+                       encoder_hidden_dims=list(encoder_hidden_dims), minimum_slope=cfg["spline"]["minimum_slope"],
+                       norm=norm)
 
 
 def fit_learned_score(build, data, cfg, settings, device):
@@ -420,10 +421,12 @@ def fit_learned_score(build, data, cfg, settings, device):
     return res, q, extra
 
 
-def run_spline(data, cfg, alpha, seed, tuned):
+def run_spline(data, cfg, alpha, seed, tuned, norm="inf"):
+    """norm="inf": the spline of the paper's main results (rotated box); norm="l1": CoCoNet_Spline-l1 (same model,
+    coordinate scores summed: an asymmetric polytope), trained with the spline's tuned settings."""
     settings = train_settings(cfg, "spline", seed, len(data.x_score), tuned["learning_rate"], tuned["batch_size"])
     t0 = time.time()
-    res, q, extra = fit_learned_score(lambda: build_spline(data, cfg, tuned["encoder_hidden_dims"], tuned["num_knots"]),
+    res, q, extra = fit_learned_score(lambda: build_spline(data, cfg, tuned["encoder_hidden_dims"], tuned["num_knots"], norm),
                                       data, cfg, settings, "cpu")
     model = res.model
 
@@ -439,7 +442,7 @@ def run_spline(data, cfg, alpha, seed, tuned):
         model.to(device)
         return (lambda xt, rt: model.score(xt, rt)), _t(data.x_test).to(device), q
 
-    return Fitted("spline", q, model, volume, contains, time.time() - t0,
+    return Fitted("spline" if norm == "inf" else "spline_l1", q, model, volume, contains, time.time() - t0,
                   sum(p.numel() for p in model.parameters()), res.selected_epoch,
                   extra={"tuned": tuned, **extra}, history=res.history, gauge=gauge)
 
@@ -522,8 +525,8 @@ def run_method(method, data, cfg, tuned=None, device="cpu", encoder_input="xf"):
         return run_mvcs_multi(data, cfg, alpha, data.seed, convex=(method == "mvcs_multi"))
     if method == "pbs":
         return run_pbs(data, cfg, alpha, data.seed)
-    if method == "spline":
-        return run_spline(data, cfg, alpha, data.seed, tuned)
+    if method in ("spline", "spline_l1"):
+        return run_spline(data, cfg, alpha, data.seed, tuned, norm="inf" if method == "spline" else "l1")
     if method == "icnn":
         return run_icnn(data, cfg, alpha, data.seed, tuned, device, encoder_input)
     raise ValueError(f"unknown method {method!r}")

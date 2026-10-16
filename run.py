@@ -2,9 +2,10 @@
 
     python run.py --dataset enb --method icnn
     python run.py --dataset enb --method spline --seeds 0 1
+    python run.py --dataset enb --method spline_l1 --seeds 0 1
 
 Per (dataset, seed): fit the MLP point predictor, tune icnn / spline (once; the choice is saved in
-<output-dir>/tuning and reused by later runs), train and calibrate the method, evaluate on the
+<output-dir>/tuning and reused by later runs; spline_l1 reuses the spline's), train and calibrate the method, evaluate on the
 test split and write <output-dir>/<dataset>/<method>/seed<S>/row.json.
 """
 
@@ -80,13 +81,15 @@ def main():
 
         try:
             tuned = None
-            if args.method in ("icnn", "spline"):
-                # Every encoder-ablation arm reuses the settings tuned for the default model ([x, F(x)]).
+            if args.method in ("icnn", "spline", "spline_l1"):
+                # Every encoder-ablation arm reuses the settings tuned for the default model ([x, F(x)]);
+                # the l_1 spline reuses the settings tuned for the spline.
+                tuned_as = "spline" if args.method == "spline_l1" else args.method
                 tuning_dir = Path(args.tuning_dir) if args.tuning_dir else Path(args.output_dir) / "tuning"
-                path = tuning_dir / args.method / f"{args.dataset}__seed{seed}.json"
+                path = tuning_dir / tuned_as / f"{args.dataset}__seed{seed}.json"
                 if not path.exists():
-                    print(f"tuning {args.method} ...")
-                    sel = tune_icnn(data, cfg, seed, device) if args.method == "icnn" else tune_spline(data, cfg, seed)
+                    print(f"tuning {tuned_as} ...")
+                    sel = tune_icnn(data, cfg, seed, device) if tuned_as == "icnn" else tune_spline(data, cfg, seed)
                     path.parent.mkdir(parents=True, exist_ok=True)
                     pd.DataFrame(sel.pop("candidates")).to_csv(path.with_name(path.stem + "__candidates.csv"), index=False)
                     write_json(path, sel)

@@ -1,15 +1,19 @@
 """Convex piecewise-linear conformity score.
 
-    s(x, r) = max_j max( psi_j+(x, z_j+), psi_j-(x, z_j-) ),   z = Q(x)^T r
+    s(x, r) = max_j max( psi_j+(x, z_j+), psi_j-(x, z_j-) ),   z = Q(x)^T r          (norm="inf")
+    s(x, r) = sum_j ( psi_j+(x, z_j+) + psi_j-(x, z_j-) )                             (norm="l1")
 
 Q(x) is an orthogonal matrix (matrix exponential of a skew-symmetric generator predicted from x;
 identity at d = 1). Each psi is a convex, increasing, zero-anchored piecewise-linear function
 whose K segment slopes are a cumulative sum of positive increments predicted from x. The sublevel
-set {r : s(x, r) <= tau} is therefore a rotated box, with a closed-form volume.
+set {r : s(x, r) <= tau} is therefore a rotated box (norm="inf") or an asymmetric polytope (norm="l1"),
+both with a closed-form volume.
 
 Knots are empirical quantiles of the training residuals, one set per coordinate and sign. The
 encoder sees [x, F(x)] with F the frozen point predictor.
 """
+
+import math
 
 import numpy as np
 import torch
@@ -95,8 +99,11 @@ class ConvexBranch(nn.Module):
 
 class SplineScore(nn.Module):
     def __init__(self, input_dim, output_dim, point_predictor, knots_plus, knots_minus,
-                 encoder_hidden_dims=(64, 32), minimum_slope=1e-4):
+                 encoder_hidden_dims=(64, 32), minimum_slope=1e-4, norm="inf"):
         super().__init__()
+        if norm not in ("inf", "l1"):
+            raise ValueError("norm must be 'inf' or 'l1'")
+        self.norm = norm
         d = int(output_dim)
         self.output_dim = d
         self.rotate = d >= 2
@@ -128,6 +135,12 @@ class SplineScore(nn.Module):
             nn.init.zeros_(self.angle_head.weight)
             nn.init.zeros_(self.angle_head.bias)
             torch.random.set_rng_state(state)
+        if norm == "l1":
+            # The paper's l_1 runs also built an (unused) exponent head here; drawing its initialisation keeps
+            # the training random stream, and so the trained models, identical.
+            nn.Linear(prev, 1)
+        # l_1 volume grids: training, validation / checkpoint selection, reported test volume
+        self.l1_train_grid, self.l1_size_grid, self.l1_eval_grid = 512, 2048, 2 ** 15
 
     def _apply(self, fn, *args, **kwargs):
         out = super()._apply(fn, *args, **kwargs)
@@ -149,6 +162,8 @@ class SplineScore(nn.Module):
                 for j in range(self.output_dim)]
 
     def score(self, x, r):
+        if self.norm == "l1":
+            return self._score_l1(x, r)
         # The encoder runs once for the rotation and once for the slopes (two graph branches),
         # which is how the models were trained; sharing one pass changes the last bits.
         if self.rotate:
@@ -165,12 +180,66 @@ class SplineScore(nn.Module):
         values = torch.cat(per_coordinate, dim=1)                      # (batch, d, 2)
         return values.reshape(values.shape[0], -1).max(dim=1, keepdim=True).values
 
+    def _score_l1(self, x, r):
+        """sum_j psi_j(z_j), written as the l_1 runs computed it (one encoder pass, slopes before the rotation,
+        sum scaled by the largest term), so a trained model gives the same numbers."""
+        h = self._encode(x)
+        coefficients = self._coefficients(h)
+        z = torch.einsum("bij,bi->bj", rotation_from_angles(self.output_dim, -self.angle_head(h)), r) if self.rotate else r
+        v = torch.stack([(self.branches_plus[j](z[:, j:j + 1].clamp_min(0.0), c_plus)
+                          + self.branches_minus[j]((-z[:, j:j + 1]).clamp_min(0.0), c_minus)).reshape(-1)
+                         for j, (c_plus, c_minus) in enumerate(coefficients)], dim=1)
+        top = v.max(dim=-1).values.clamp_min(1e-9)
+        return (top * (v / top.unsqueeze(-1)).clamp_min(1e-30).sum(-1)).reshape(-1, 1)
+
+    def _l1_log_volume(self, x, tau, n):
+        """Exact volume of {sum_j psi_j(z_j) <= tau}. Substituting u_j = psi_j(z_j) and merging the orthants gives
+        V = int_{u >= 0, sum u <= tau} prod_j H_j(u_j) du, with H_j the summed inverse slopes of the two branches,
+        a step function: H_j(u) = sum_i c_ji 1[u >= a_ji]. Each product integrates in closed form,
+        V = (1/d!) sum_{i_1..i_d} prod_j c_{j i_j} (tau - sum_j a_{j i_j})_+^d, summed directly when the number of
+        terms is small; otherwise V = int_0^tau (H_1 * ... * H_d)(t) dt by FFT convolution on n cells of [0, tau]
+        with Richardson extrapolation 2 V(2n) - V(n). Differentiable in the slopes."""
+        h = self._encode(x)
+        A, C = [], []
+        for j, (c_plus, c_minus) in enumerate(self._coefficients(h)):
+            mp, mm = self.branches_plus[j].slopes(c_plus), self.branches_minus[j].slopes(c_minus)
+            parts_a, parts_c = [], []
+            for br, m in ((self.branches_plus[j], mp), (self.branches_minus[j], mm)):
+                m = m.double(); kn = br.knots.double()
+                parts_a.append(torch.cumsum(m[:, :-1] * torch.diff(kn)[: m.shape[1] - 1], dim=1))   # psi at inner knots
+                parts_c.append(1.0 / m[:, 1:] - 1.0 / m[:, :-1])
+            c0 = 1.0 / mp[:, :1].double() + 1.0 / mm[:, :1].double()
+            A.append(torch.cat([torch.zeros_like(c0)] + parts_a, 1)); C.append(torch.cat([c0] + parts_c, 1))
+        tau, d = float(tau), self.output_dim
+        if math.prod(a.shape[1] for a in A) * x.shape[0] <= 4e6:
+            s = torch.zeros_like(A[0][:, :1]); w = torch.ones_like(s)
+            for a, c in zip(A, C):
+                s = (s[:, :, None] + a[:, None, :]).flatten(1); w = (w[:, :, None] * c[:, None, :]).flatten(1)
+            v = (w * torch.clamp(tau - s, min=0.0) ** d).sum(1) / math.factorial(d)
+        else:
+            def conv(n):
+                e = torch.arange(n + 1, dtype=torch.float64, device=A[0].device) * (tau / n)
+                g = None
+                for a, c in zip(A, C):
+                    cum = (c[:, None, :] * torch.clamp(e[None, :, None] - a[:, None, :], min=0.0)).sum(2)
+                    hc = cum[:, 1:] - cum[:, :-1]                       # H_j integrated over each cell
+                    g = hc if g is None else torch.fft.irfft(torch.fft.rfft(g, 2 * n) * torch.fft.rfft(hc, 2 * n), 2 * n)[:, :n]
+                return g.sum(1)
+            v = 2 * conv(2 * n) - conv(n)
+        return torch.log(v.clamp_min(1e-300)).to(x.dtype).reshape(-1, 1)
+
+    def _l1_log_volume_chunked(self, x, tau, n):
+        return torch.cat([self._l1_log_volume(x[i:i + 64], tau, n) for i in range(0, x.shape[0], 64)], 0)
+
     def width(self, x, tau):
         (c_plus, c_minus), = self._coefficients(self._encode(x))
         return self.branches_plus[0].inverse(tau, c_plus) + self.branches_minus[0].inverse(tau, c_minus)
 
     def log_volume(self, x, tau):
-        """log volume of the box: sum_j log(u_j+ + u_j-). Rotation has |det Q| = 1."""
+        """log volume of the box: sum_j log(u_j+ + u_j-) (l_1: the exact polytope volume, on the fine grid).
+        Rotation has |det Q| = 1."""
+        if self.norm == "l1":
+            return self._l1_log_volume_chunked(x, tau, self.l1_eval_grid)
         log_widths = []
         for j, (c_plus, c_minus) in enumerate(self._coefficients(self._encode(x))):
             w = self.branches_plus[j].inverse(tau, c_plus) + self.branches_minus[j].inverse(tau, c_minus)
@@ -180,9 +249,14 @@ class SplineScore(nn.Module):
     def log_size(self, x, tau):
         if self.output_dim == 1:
             return torch.log(self.width(x, tau).clamp_min(1e-300))
+        if self.norm == "l1":
+            return self._l1_log_volume(x, tau, self.l1_train_grid)
         return self.log_volume(x, tau)
 
     def size(self, x, tau):
         if self.output_dim == 1:
             return self.width(x, tau)
+        if self.norm == "l1":
+            with torch.no_grad():
+                return torch.exp(self._l1_log_volume_chunked(x, tau, self.l1_size_grid))
         return torch.exp(self.log_volume(x, tau))

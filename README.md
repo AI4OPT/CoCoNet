@@ -29,8 +29,9 @@ Two score families are provided:
 
 - **CoCoNet<sub>ICNN</sub>**: an input-convex neural network. It can represent any convex region,
   including rounded polygons and asymmetric shapes.
-- **CoCoNet<sub>Spline</sub>**: convex piecewise-linear scores along learned rotated axes. It
-  gives a rotated box with a closed-form volume.
+- **CoCoNet<sub>Spline</sub>**: convex piecewise-linear scores along learned rotated axes. Taking
+  their maximum (ℓ<sub>∞</sub>, `spline`) gives a rotated box; summing them (ℓ<sub>1</sub>, `spline_l1`)
+  gives an asymmetric polytope. Both have a closed-form volume.
 
 Every method receives the residuals of the **same frozen MLP point predictor** per (dataset,
 seed), is calibrated by split conformal prediction on D<sub>cal</sub>, and is scored on
@@ -54,7 +55,8 @@ experiments.
 | Method | `--method` | Prediction region |
 |---|---|---|
 | **CoCoNet<sub>ICNN</sub>** | `icnn` | sublevel set of an input-convex neural network score |
-| **CoCoNet<sub>Spline</sub>** | `spline` | rotated box from convex piecewise-linear scores |
+| **CoCoNet<sub>Spline-ℓ∞</sub>** | `spline` | rotated box from convex piecewise-linear scores |
+| **CoCoNet<sub>Spline-ℓ1</sub>** | `spline_l1` | asymmetric polytope: the same scores summed (multivariate only; it reuses the spline's tuning) |
 | Abs. Res. | `absolute_residual` | axis-aligned box, s = max<sub>j</sub> \|r<sub>j</sub>\| on standardized residuals |
 | Emp. Cop. | `empirical_copula` | axis-aligned box from the empirical copula of normalized scores |
 | G-Ellip. | `global_ellipsoid` | one Mahalanobis ellipsoid |
@@ -98,6 +100,7 @@ give, and writes one folder per seed with its `row.json`.
 # real data: results/<dataset>/<method>/seed<S>/row.json
 python run.py --dataset enb --method icnn                     # seeds 0-4
 python run.py --dataset enb --method spline --seeds 0 1
+python run.py --dataset enb --method spline_l1 --seeds 0 1
 python run.py --dataset concrete --method locally_weighted    # univariate baseline
 
 # synthetic shapes: results_synthetic/<shape>/<method>/seed<S>/row.json
@@ -122,7 +125,7 @@ on [−1, 1]<sup>2</sup>, and every method is given the exact mean as its point 
 | | |
 |---|---|
 | **Shapes** | `ellipse`, `rectangle`, `triangle`, `trapezoid` |
-| **Methods** | `absolute_residual`, `empirical_copula`, `global_ellipsoid`, `local_ellipsoid`, `mvcs`, `spline`, `icnn` |
+| **Methods** | `absolute_residual`, `empirical_copula`, `global_ellipsoid`, `local_ellipsoid`, `mvcs`, `spline`, `spline_l1`, `icnn` |
 | **Splits per seed** | 2,500 train · 2,000 validation · 8,000 calibration · 1,000 test |
 | **Seeds** | 42–46 |
 | **Metrics** | test coverage · V/V\* (mean region area over V\*) · IoU with the true region |
@@ -130,7 +133,8 @@ on [−1, 1]<sup>2</sup>, and every method is given the exact mean as its point 
 IoU compares the region at an input with the true region on a 500 × 500 grid, averaged over
 x = (0, 0) and 24 random inputs. The settings that differ from the real-data runs are in the
 `synthetic` block of `configs/experiment.yaml`: γ<sub>cov</sub> ∈ {0, 0.1}, and a fixed ICNN
-(learning rate 0.002, batch size 32, encoder [64, 32]). The spline is tuned as on real data.
+(learning rate 0.002, batch size 32, encoder [64, 32]). The spline is tuned as on real data, and `spline_l1`
+reuses its settings.
 
 ### 📓 Notebook
 
@@ -142,7 +146,7 @@ results and the figure can be read without running anything.
 | **Settings** | shapes, methods and seeds; by default one seed per shape (the figure seeds), or all five with `SEEDS = [42, 43, 44, 45, 46]` |
 | **1. Run** | every method on every shape through `synthetic.py`; finished runs are not repeated and their saved result is shown |
 | **2. Results** | test coverage, V/V\* and IoU of every run |
-| **3. Figure** | the calibrated 90% regions of CoCoNet<sub>ICNN</sub>, MVCS, CoCoNet<sub>Spline</sub> and L-Ellip. against the true region, saved as `results_synthetic/synthetic_regions.pdf` |
+| **3. Figure** | the calibrated 90% regions of CoCoNet<sub>ICNN</sub>, MVCS, CoCoNet<sub>Spline-ℓ∞</sub>, CoCoNet<sub>Spline-ℓ1</sub> and L-Ellip. against the true region, saved as `results_synthetic/synthetic_regions.pdf` |
 
 ```bash
 jupyter notebook synthetic.ipynb
@@ -158,11 +162,11 @@ python run.py --dataset <key> --method <method>
 ```
 
 Multivariate datasets take `absolute_residual`, `empirical_copula`, `global_ellipsoid`,
-`local_ellipsoid`, `mvcs`, `spline`, `icnn` and the four extended methods. Univariate datasets
+`local_ellipsoid`, `mvcs`, `spline`, `spline_l1`, `icnn` and the four extended methods. Univariate datasets
 take `absolute_residual`, `locally_weighted`, `mvcs`, `spline` and `icnn`.
 
 > **End to end.** Each run fits the MLP point predictor of the (dataset, seed) and, for `icnn`
-> and `spline`, first tunes their settings. The tuned choice is saved in `<output-dir>/tuning/`
+> and `spline`, first tunes their settings (`spline_l1` reuses the spline's). The tuned choice is saved in `<output-dir>/tuning/`
 > with a hash of the data split and residuals, and later runs of the same (dataset, seed) reuse
 > it. Tuning is the expensive step: a few extra trainings per (dataset, seed). To share
 > point predictors across runs, save them once with
@@ -189,7 +193,7 @@ All settings live in `configs/experiment.yaml`; the datasets are defined in `con
 | **Preprocessing** | features standardized and one-hot encoded, targets standardized, all with statistics of D<sub>pred</sub>; volumes are reported on the original target scale |
 | **Point predictor** | MLP [64, 32] fitted on D<sub>pred</sub> and frozen; every method uses its residuals |
 | **Objective** | (mean V)<sup>1/d</sup> + λ<sub>miss</sub> · mean[(S − 1)<sub>+</sub>] + λ<sub>cov</sub> · (mean σ(10 (1 − S)) − 0.9)<sup>2</sup>, threshold fixed at 1 |
-| **Optimisation** | Adam, gradient clipping at 5, patience 80; at most 400 epochs (ICNN) or 300 (spline) |
+| **Optimisation** | Adam, gradient clipping at 5, patience 80; at most 400 epochs (ICNN) or 300 (both splines) |
 | **Loss weights** | λ = γ × reference scale of the initialised model; γ<sub>miss</sub> ∈ {0.01, 0.03, 1, 10} × γ<sub>cov</sub> ∈ {0, 0.1, 1}; the coverage-admissible candidate with the smallest validation size wins |
 | **Checkpoint** | every 5 epochs, by calibrated validation coverage and size |
 | **Tuning** | per (dataset, seed), at the neutral weights: the ICNN encoder width {[64, 32], [256, 128]}; the spline knots {2, 4, 6, 8}, batch size {32, 64, 128} and encoder width |
@@ -281,7 +285,7 @@ mu, alpha, homo, lumo, r2, zpve, Cv, U0 (then gap, U, H, G, unused).
 ├── coconet/
 │   ├── pipeline.py          data preparation, one run_<method> per method, evaluation
 │   ├── tuning.py            per-(dataset, seed) tuning of the learned scores
-│   ├── models/              icnn.py, spline.py (the two scores), mlp.py, volume_estimator.py
+│   ├── models/              icnn.py, spline.py (the scores; spline.py has the ℓ∞ and ℓ1 aggregations), mlp.py, volume_estimator.py
 │   ├── training/            loss, loss-weight grid search, training loop, checkpoint selection
 │   ├── conformal/           calibration, ellipsoids, empirical copula, MVCS (single and multi-norm), PBS
 │   └── data/                loaders, preprocessing, splits, synthetic shapes

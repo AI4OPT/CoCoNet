@@ -1,11 +1,11 @@
-"""The synthetic-shapes figure: calibrated 90% regions of four methods against the true region.
+"""The synthetic-shapes figure: calibrated 90% regions of five methods against the true region.
 
     python plot_synthetic.py                                   # results_synthetic -> results_synthetic/synthetic_regions.pdf
     python plot_synthetic.py --seeds 42 42 42 42 --out regions.png
 
 Reads the region.npz files written by synthetic.py, so run these first for the seeds you plot:
 
-    python synthetic.py --shape <shape> --method {icnn,mvcs,spline,local_ellipsoid}
+    python synthetic.py --shape <shape> --method {icnn,mvcs,spline,spline_l1,local_ellipsoid}
 
 One panel per shape. Each method's region is the level set {score = threshold} of its own score at
 x = (0, 0); gray points are the test residuals and the dashed gold outline is the true region.
@@ -27,12 +27,14 @@ from coconet.data.synthetic import Shape  # noqa: E402
 SHAPES = ["ellipse", "rectangle", "triangle", "trapezoid"]
 TITLES = {"ellipse": "Ellipsoid", "rectangle": "Rectangle", "triangle": "Triangle", "trapezoid": "Trapezoid"}
 SEEDS = [43, 43, 43, 44]                    # one seed per shape, in the order of SHAPES
-METHODS = ["icnn", "mvcs", "spline", "local_ellipsoid"]
+METHODS = ["icnn", "mvcs", "spline", "spline_l1", "local_ellipsoid"]
 
 STYLE = {
     "icnn": dict(color="#332288", linewidth=5.2, linestyle="-", zorder=5, label=r"CoCoNet$_{\mathrm{ICNN}}$"),
     "mvcs": dict(color="#661100", linewidth=5.2, linestyle="--", zorder=5, label="MVCS"),
-    "spline": dict(color="#88CCEE", linewidth=5.2, linestyle="-.", zorder=5, label=r"CoCoNet$_{\mathrm{Spline}}$"),
+    "spline": dict(color="#88CCEE", linewidth=5.2, linestyle="-.", zorder=5, label=r"CoCoNet$_{\mathrm{Spline}\text{-}\ell_\infty}$"),
+    "spline_l1": dict(color="#117733", linewidth=5.2, linestyle=(0, (1.2, 1.4)), zorder=5,
+                      label=r"CoCoNet$_{\mathrm{Spline}\text{-}\ell_1}$"),
     "local_ellipsoid": dict(color="#AA4499", linewidth=5.0, linestyle=(0, (5, 2)), zorder=5, label="L-Ellip."),
 }
 TRUE = dict(color="#DDCC77", linewidth=4.5, linestyle=(0, (6, 2)), zorder=2, label="Minimum set")

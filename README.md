@@ -2,7 +2,6 @@
 
 # CoCoNet: Convex Conformal Network for Multi-dimensional Uncertainty Regions
 
-**Learned convex prediction regions for multivariate regression, with split-conformal coverage**
 
 ![Python](https://img.shields.io/badge/python-3.13-3776AB?logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/pytorch-2.7-EE4C2C?logo=pytorch&logoColor=white)

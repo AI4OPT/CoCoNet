@@ -1,6 +1,6 @@
 <div align="center">
 
-# CoCoNet 🥥
+# CoCoNet: Convex Conformal Network for Multi-dimensional Uncertainty Regions
 
 **Learned convex prediction regions for multivariate regression, with split-conformal coverage**
 
@@ -23,7 +23,7 @@ the shape of the region can change with x. A calibration set gives the conformal
 the sublevel set of the score at that threshold is the prediction region: **convex, input-adaptive,
 and covering y with the target probability** under exchangeability.
 
-<p align="center"><img src="figures/overview.png" width="85%" alt="Method overview"></p>
+<p align="center"><img src="figures/overview.png" width="100%" alt="Overview of CoCoNet (Figure 1 of the paper)"></p>
 
 Two score families are provided:
 

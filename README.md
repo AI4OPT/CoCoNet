@@ -291,3 +291,19 @@ mu, alpha, homo, lumo, r2, zpve, Cv, U0 (then gap, U, H, G, unused).
 ├── scripts/get_mvcs.sh      fetches the MVCS authors' code used by the multi-norm baselines
 └── data/raw/                raw dataset files
 ```
+
+
+## Citation
+
+If you use this code, please cite:
+
+```bibtex
+@article{moradi2026coconet,
+  title={CoCoNet: Convex Conformal Network for Multi-Dimensional Uncertainty Regions},
+  author={Moradi, Alireza and Bruys, Thomas and Van Hentenryck, Pascal and Zandehshahvar, Reza},
+  journal={arXiv preprint arXiv:2610.24246},
+  year={2026},
+  url={https://arxiv.org/abs/2610.24246}
+}
+```
+

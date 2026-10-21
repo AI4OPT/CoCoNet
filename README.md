@@ -15,7 +15,7 @@
 ---
 
 ## Overview
-This repository includes codes and data for our recent paper [CoCoNet: Convex Conformal Network for Multi-Dimensional Uncertainty Regions](https://arxiv.org/abs/2610.24246). A BibTeX entry for citation is provided at the end of this page.
+This repository includes codes and data for [CoCoNet: Convex Conformal Network for Multi-Dimensional Uncertainty Regions](https://arxiv.org/abs/2610.24246). A BibTeX entry for citation is provided at the end of this page.
 
 CoCoNet learns a **conformity score that is convex in the residual** r = y − F(x). An encoder
 maps the input x and the point prediction F(x) to a representation that conditions the score, so
